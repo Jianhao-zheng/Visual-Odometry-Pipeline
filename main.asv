@@ -72,19 +72,27 @@ debug = true;
 K = load('data/data_exe7/K.txt');
 S.P = load('data/data_exe7/keypoints.txt')';
 S.X = load('data/data_exe7/p_W_landmarks.txt')';
-database_image = imread('data/data_exe7/000000.png');
+S.C = [];
+S.F = [];
+S.T = [];
+idx = rand(200,1);
 
+database_image = imread('data/data_exe7/000000.png');
 bootstrap_frames = zeros(2,1);
 last_frame = 9;
 
 %% Continuous operation
 
 % generate and initialize KLT tracker
-KLT_tracker_c = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2);
-initialize(KLT_tracker_c,S.P',database_image);
+KLT_tracker_c = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
+    'MaxIterations',50,'MaxBidirectionalError',3);
+initialize(KLT_tracker_c,fliplr(S.P'),database_image);
 % [features, valid_key_points] = detectkeypoints(database_image); 
 % initialize(KLT_tracker_c,valid_key_points.Location,database_image);
 prev_img = database_image;
+
+% parameters for discarding redundant new candidate keypoints
+r_discard_redundant = 5;
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -106,24 +114,52 @@ for i = range
     image = imread(['data/data_exe7/' sprintf('%06d.png',i)]);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% assciate keypoints %%%%%%%%%%%%%%%%%%%%%%%
-    %detect keypoints
-%     [features, valid_key_points] = detectkeypoints(image); 
-    %figure(1); imshow(image); hold on;plot(valid_key_points); % plot
+    % detect keypoints
+    [features, valid_key_candidates] = detectkeypoints(image); 
+    % figure(1); imshow(image); hold on;plot(valid_key_points); % plot
     
-    %KLT tracking
+    % KLT tracking
     [matched_points,validity] = KLT_tracker_c(image);
-    matched_points_valid = matched_points(validity,:);
+    matched_points_valid = fliplr(matched_points(validity,:));
     
     % perform RANSAC to find best Pose and inliers
     [R_C_W, t_C_W, inlier_mask, max_num_inliers_history, num_iteration_history] = ...
         ransacLocalization(matched_points_valid', S.X(:,validity), K);
+    R_W_C = R_C_W';
+    T_W_C = -R_C_W'*t_C_W;
     
-    plot_KLT_debug(S,matched_points,prev_img,image,validity,inlier_mask);
+    % plotting
+%     plot_KLT_debug(S,fliplr(matched_points),prev_img,image,validity,inlier_mask);
     
+    % update KLT_tracker
     release(KLT_tracker_c);
-    S.X = matched_points_valid'(:,(inlier_mask)>0);
-    S.P = S.P(:,
-    initialize(KLT_tracker_c,matched_points,image);
+    S.P = matched_points_valid((inlier_mask)>0,:)';
+    S.X = S.X(:,validity);
+    S.X = S.X(:,(inlier_mask)>0);
+    initialize(KLT_tracker_c,fliplr(S.P'),image);
+    
+    % discard redundant new candidate keypoints (whose distance to any
+    % existing keypoints is less than 'r_discard_redundant')
+    redundant_map = ones(size(image)); 
+    for ii = 1:size(S.P,2)
+        redundant_map(max(1,floor(S.P(1,ii)-r_discard_redundant)):...
+            min(ceil(S.P(1,ii)+r_discard_redundant),size(redundant_map,1)),...
+            max(1,floor(S.P(2,ii)-r_discard_redundant)):...
+            min(ceil(S.P(2,ii)+r_discard_redundant),size(redundant_map,2))) = 0;
+    end
+    no_discard = ones(size(valid_key_candidates.Location,1),1);
+    for ii = 1:size(valid_key_candidates.Location,1)
+        no_discard(ii) = redundant_map(round(valid_key_candidates.Location(ii,2)),round(valid_key_candidates.Location(ii,1)));
+    end
+    no_discard = logical(no_discard);
+    
+    % plot for debugging
+    plot_discard_debug(image,S,valid_key_candidates,no_discard)
+    
+    valid_key_candidates = valid_key_candidates(no_discard);
+    S.F = [S.F, flipud(valid_key_candidates.Location')];
+    S.T = [S.T, repmat([R_W_C{:};,1,size(valid_key_candidates.Location,1))];
+    
     
     % Makes sure that plots refresh.    
     pause(0.01);

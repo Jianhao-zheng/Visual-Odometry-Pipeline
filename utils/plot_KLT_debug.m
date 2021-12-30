@@ -1,5 +1,5 @@
 function plot_KLT_debug(S,matched_points,prev_image,image,validity,inlier_mask)
-figure(3)
+figure(1)
 subplot(2, 2, 1);
 imshow(prev_image)
 hold on
