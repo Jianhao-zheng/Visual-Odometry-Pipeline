@@ -1,8 +1,9 @@
 %% Setup
-ds = 2; % 0: KITTI, 1: Malaga, 2: parking
+ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
+    kitti_path = 'data/kitti'; 
     assert(exist('kitti_path', 'var') ~= 0);
     ground_truth = load([kitti_path '/poses/05.txt']);
     ground_truth = ground_truth(:, [end-8 end]);
@@ -12,6 +13,7 @@ if ds == 0
         0 0 1];
 elseif ds == 1
     % Path containing the many files of Malaga 7.
+    malaga_path = 'data/malaga';
     assert(exist('malaga_path', 'var') ~= 0);
     images = dir([malaga_path ...
         '/malaga-urban-dataset-extract-07_rectified_800x600_Images']);
@@ -22,6 +24,7 @@ elseif ds == 1
         0 0 1];
 elseif ds == 2
     % Path containing images, depths and all...
+    parking_path = 'data/parking';
     assert(exist('parking_path', 'var') ~= 0);
     last_frame = 598;
     K = load([parking_path '/K.txt']);
