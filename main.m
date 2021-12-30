@@ -1,4 +1,5 @@
 %% Setup
+close all;clear;clc;
 ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 if ds == 0
