@@ -80,10 +80,11 @@ last_frame = 9;
 %% Continuous operation
 
 % generate and initialize KLT tracker
-KLT_tracker_c = vision.PointTracker;
+KLT_tracker_c = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2);
 initialize(KLT_tracker_c,S.P',database_image);
 % [features, valid_key_points] = detectkeypoints(database_image); 
 % initialize(KLT_tracker_c,valid_key_points.Location,database_image);
+prev_img = database_image;
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -112,33 +113,17 @@ for i = range
     %KLT tracking
     [matched_points,validity] = KLT_tracker_c(image);
     matched_points_valid = matched_points(validity,:);
-    release(KLT_tracker_c);
-    initialize(KLT_tracker_c,matched_points,image);
     
     % perform RANSAC to find best Pose and inliers
     [R_C_W, t_C_W, inlier_mask, max_num_inliers_history, num_iteration_history] = ...
         ransacLocalization(matched_points_valid', S.X(:,validity), K);
     
-    figure(1);
-    matched_query_keypoints = matched_points_valid';
-    keypoints = S.P;
-    temp = 1:size(S.P,2);
-    corresponding_matches = temp(validity)';
-    subplot(2, 1, 1);
-    imshow(image);
-    hold on;
-    plot(matched_query_keypoints(2, (1-inlier_mask)>0), ...
-        matched_query_keypoints(1, (1-inlier_mask)>0), 'rx', 'Linewidth', 2);
-    plot(matched_query_keypoints(2, (inlier_mask)>0), ...
-        matched_query_keypoints(1, (inlier_mask)>0), 'gx', 'Linewidth', 2);
-    plotMatches(corresponding_matches(inlier_mask>0), ...
-        matched_query_keypoints(:, inlier_mask>0), ...
-        keypoints);
-    hold off;
-    title('Inlier and outlier matches');
-    subplot(2, 1, 2);
-    plot(max_num_inliers_history);
-    title('Maximum inlier count over RANSAC iterations.');
+    plot_KLT_debug(S,matched_points,prev_img,image,validity,inlier_mask);
+    
+    release(KLT_tracker_c);
+    S.X = matched_points_valid'(:,(inlier_mask)>0);
+    S.P = S.P(:,
+    initialize(KLT_tracker_c,matched_points,image);
     
     % Makes sure that plots refresh.    
     pause(0.01);
