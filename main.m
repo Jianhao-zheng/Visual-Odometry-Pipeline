@@ -101,7 +101,7 @@ KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
 r_discard_redundant = 5;
 
 % parameters for deciding whether or not to add a triangulated landmark
-angle_threshold = pi*20/180; %start with pi*10/180 dervie by Rule of the thumb:
+angle_threshold = pi*5/180; %start with pi*10/180 dervie by Rule of the thumb:
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -138,7 +138,7 @@ for i = range
     T_W_C = -R_C_W'*t_C_W;
     
     % plotting
-%     plot_KLT_debug(S,fliplr(matched_points),prev_img,image,validity,inlier_mask);
+%     plot_KLT_debug(S.P,fliplr(matched_points),prev_img,image,validity,inlier_mask);
     
     % update KLT_tracker (for landmarks)
     release(KLT_tracker_L);
@@ -149,12 +149,21 @@ for i = range
     
     % track candidate keypoints
     if ~isempty(S.C)
-        [matched_points_candidate,validity_candidate] = KLT_tracker_L(image);
+        [matched_points_candidate,validity_candidate] = KLT_tracker_C(image);
         matched_points_valid_candidate = fliplr(matched_points_candidate(validity_candidate,:)); %(u,v) to (row,col)
-        S.C = S.C(:,validity_candidate);
+        
+        [~,inliersIndex] = estimateFundamentalMatrix(S.C(:,validity_candidate)',matched_points_valid_candidate);
+        matched_points_valid_candidate = matched_points_valid_candidate(inliersIndex,:);
+        % plotting
+%         plot_KLT_debug(S.C,fliplr(matched_points_candidate),prev_img,image,validity_candidate,true(1,sum(validity_candidate)));
+        plot_KLT_debug(S.C,fliplr(matched_points_candidate),prev_img,image,validity_candidate,inliersIndex);
+        
         S.F = S.F(:,validity_candidate);
+        S.F = S.F(:,inliersIndex);
         S.F_W = S.F_W(:,validity_candidate);
+        S.F_W = S.F_W(:,inliersIndex);
         S.T = S.T(:,validity_candidate);
+        S.T = S.T(:,inliersIndex);
         
         % calculate angle
         temp = fliplr(matched_points_valid_candidate)'; % (row, col) to (u,v)
@@ -169,13 +178,21 @@ for i = range
         % than given threshold
         num_added = sum(whehter_append);
         p_first = [flipud(S.F(:,whehter_append)); ones(1,num_added)]; %(u,v,1)
-        M_vec_current = S.T(:,whehter_append);
+        M_vec_first = S.T(:,whehter_append);
         p_current = [temp(:,whehter_append); ones(1,num_added)]; %(u,v,1)
         M_current = K*[R_C_W t_C_W];
         for ii = 1:num_added
-            M_first = K*[reshape(M_vec_current(1:9,ii),[3,3]) M_vec_current(10:12,ii)];
+            M_first = K*[reshape(M_vec_first(1:9,ii),[3,3]) M_vec_first(10:12,ii)]; % can be speeded up for candidate from same first frame
             P_est = linearTriangulation(p_current(:,ii),p_first(:,ii),M_current,M_first);
+            S.X = [S.X, P_est(1:3)];
+            S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
         end
+        
+        % update state
+        S.C = matched_points_valid_candidate(~whehter_append,:)';
+        S.F = S.F(:,~whehter_append);
+        S.F_W = S.F_W(:,~whehter_append);
+        S.T = S.T(:,~whehter_append);
     end
         
     % discard redundant new candidate keypoints (whose distance to any
@@ -187,6 +204,14 @@ for i = range
             max(1,floor(S.P(2,ii)-r_discard_redundant)):...
             min(ceil(S.P(2,ii)+r_discard_redundant),size(redundant_map,2))) = 0;
     end
+    
+    for ii = 1:size(S.C,2)
+        redundant_map(max(1,floor(S.C(1,ii)-r_discard_redundant)):...
+            min(ceil(S.C(1,ii)+r_discard_redundant),size(redundant_map,1)),...
+            max(1,floor(S.C(2,ii)-r_discard_redundant)):...
+            min(ceil(S.C(2,ii)+r_discard_redundant),size(redundant_map,2))) = 0;
+    end
+    
     no_discard = ones(size(valid_key_candidates.Location,1),1);
     for ii = 1:size(valid_key_candidates.Location,1)
         no_discard(ii) = redundant_map(round(valid_key_candidates.Location(ii,2)),round(valid_key_candidates.Location(ii,1)));
@@ -194,12 +219,12 @@ for i = range
     no_discard = logical(no_discard);
     
     % plot for debugging
-    plot_discard_debug(image,S,valid_key_candidates,no_discard)
+%     plot_discard_debug(image,S,valid_key_candidates,no_discard)
     
     valid_key_candidates = valid_key_candidates(no_discard); 
-    S.C = [S.C, flipud(valid_key_candidates.Location')];
-    S.F = [S.F, flipud(valid_key_candidates.Location')];
-    unnormalized_camera_coord = [valid_key_candidates.Location';...
+    S.C = [S.C, double(flipud(valid_key_candidates.Location'))];
+    S.F = [S.F, double(flipud(valid_key_candidates.Location'))];
+    unnormalized_camera_coord = [double(valid_key_candidates.Location');...
         ones(1,size(valid_key_candidates.Location,1))]; % (u,v)
     normalized_camera_coord = K\unnormalized_camera_coord;
     normalized_camera_coord_world = R_W_C*normalized_camera_coord...
