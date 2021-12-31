@@ -44,6 +44,18 @@ end
 
 %% Bootstrap
 % need to set bootstrap_frames
+%% Bootstrap
+cameraParams = cameraParameters('IntrinsicMatrix',K');
+
+% need to set bootstrap_frames
+% hint from project statement
+bootstrap_frames = [0 2];
+
+% KLT
+% % KLT_tracker_init = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
+% %     'MaxIterations',50,'MaxBidirectionalError',3);
+
+
 if ds == 0
     img0 = imread([kitti_path '/05/image_0/' ...
         sprintf('%06d.png',bootstrap_frames(1))]);
@@ -64,6 +76,44 @@ elseif ds == 2
 else
     assert(false);
 end
+
+% patch matching
+corner_patch_size = 9;
+harris_kappa = 0.08;
+num_keypoints = 200;
+nonmaximum_supression_radius = 8;
+descriptor_radius = 9;
+match_lambda = 4;
+
+harris_scores0 = harris(img0, corner_patch_size, harris_kappa);
+harris_scores1 = harris(img1, corner_patch_size, harris_kappa);
+keypoints0 = selectKeypoints(...
+    harris_scores0, num_keypoints, nonmaximum_supression_radius);
+keypoints1 = selectKeypoints(...
+    harris_scores1, num_keypoints, nonmaximum_supression_radius);
+% 361 x 200
+descriptors0 = describeKeypoints(img0, keypoints0, descriptor_radius);
+descriptors1 = describeKeypoints(img1, keypoints1, descriptor_radius);
+%Match descriptors
+matches = matchDescriptors(descriptors1, descriptors0, match_lambda);
+%plotMatches(matches, keypoints1, keypoints0);
+
+
+% or directly choose from the following detected Harries points
+[feat0, valid0] = detectkeypoints(img0);  % 416 x 64
+[feat1, valid1] = detectkeypoints(img1);  % 422 x 64
+selectedNumFeatures = min(feat0.NumFeatures, feat1.NumFeatures);
+selectedDescriptors0 = feat0.Features(1:selectedNumFeatures,:)';
+selectedDescriptors1 = feat1.Features(1:selectedNumFeatures,:)';
+matches_new = matchDescriptors(selectedDescriptors1, selectedDescriptors0, match_lambda);
+newKeypoints0 = valid0.Location(:,[2 1])';
+newKeypoints1 = valid1.Location(:,[2 1])';
+%plotMatches(matches_new, newKeypoints1, newKeypoints0);
+
+% use RANSAC to filter outliers out
+fRANSAC = estimateFundamentalMatrix(matchedPoints1,...
+    matchedPoints2,'Method','RANSAC',...
+    'NumTrials',2000,'DistanceThreshold',1e-4);
 
 
 %% Directly get bootstrap from exe7, for debugging continuous operation only
