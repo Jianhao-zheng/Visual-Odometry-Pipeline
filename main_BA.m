@@ -6,7 +6,7 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 1; % 0: KITTI, 1: Malaga, 2: parking
+ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
@@ -129,13 +129,13 @@ end
 img1 = uint8(img_seqs(:,:,img_seq_len));
 
 [matched_points1_, validity_img1] = KLT_tracker_init(img1);
-matched_points_valid = fliplr(matched_points1_(validity_img1,:));
+matched_points_valid = matched_points1_(validity_img1,:);
 
 init_points = init_points_(validity_img1,:);
 
 % method1: FundamentalMatrix without known camera parameters
-% [fRANSAC, inliers] = estimateFundamentalMatrix(flip(init_points),...
-% flip(matched_points_valid),'Method','RANSAC',...
+% [fRANSAC, inliers] = estimateFundamentalMatrix(init_points,...  
+% matched_points_valid,'Method','RANSAC',...
 % 'NumTrials',2000,'DistanceThreshold',1e-2);
 % disp('Estimated inlier ratio from method2 is');
 % disp(nnz(inliers)/numel(inliers));
@@ -151,13 +151,13 @@ init_points = init_points(inliers,:);
 matched_points_valid = matched_points_valid(inliers,:);
 
 % visualize for detected feature debugging
-plot_KLT_debug(...
-    fliplr(init_points_)', ...
-    fliplr(matched_points1_),...
-    img0,...
-    img1,...
-    validity_img1,...
-    inliers);
+% plot_KLT_debug(...
+%     fliplr(init_points_)', ...
+%     fliplr(matched_points1_),...
+%     img0,...
+%     img1,...
+%     validity_img1,...
+%     inliers);
 
 % estimate relative pose relative to frame previous frame
 [ori, loc] = relativeCameraPose(...
@@ -187,6 +187,31 @@ pts3d = linearTriangulation(...
     matched_points_valid_homo, ...
     proj_mat0, ...
     proj_mat1);
+
+reproj1 = proj_mat0*pts3d;
+reproj1 = reproj1./repmat(reproj1(3,:),[3,1]);
+reproj1_err = double(vecnorm(reproj1-init_points_homo));
+reproj2 = proj_mat1*pts3d;
+reproj2 = reproj2./repmat(reproj2(3,:),[3,1]);
+reproj2_err = double(vecnorm(reproj2-matched_points_valid_homo));
+disp('mean of reprojection error is:')
+disp([mean(reproj1_err),mean(reproj2_err)])
+
+valid_idx= reproj1_err<8 & reproj2_err<8;
+pts3d = pts3d(:,valid_idx);
+init_points_homo = init_points_homo(:,valid_idx);
+matched_points_valid_homo = matched_points_valid_homo(:,valid_idx);
+matched_points_valid = matched_points_valid(valid_idx,:);
+
+reproj1 = proj_mat0*pts3d;
+reproj1 = reproj1./repmat(reproj1(3,:),[3,1]);
+reproj1_err = double(vecnorm(reproj1-init_points_homo));
+reproj2 = proj_mat1*pts3d;
+reproj2 = reproj2./repmat(reproj2(3,:),[3,1]);
+reproj2_err = double(vecnorm(reproj2-matched_points_valid_homo));
+disp('mean of reprojection error is:')
+disp([mean(reproj1_err),mean(reproj2_err)])
+
 % choose first three dimensions
 pts3d = pts3d(1:3,:)';
 
@@ -196,8 +221,8 @@ consider_height = false; % true, false
 if consider_height
     disp(max(pts3d(3,:)))
     disp(min(pts3d(3,:))) % 可能存在 -7.7913 的点
-    min_height = -2.0;
-    max_height = 30.0;
+    min_height = loc(3);
+    max_height = 50.0;
     valid_idx = (pts3d(:,3) >= min_height) & (pts3d(:,3) <= max_height);
     pts3d = pts3d(valid_idx,:);
     init_points = init_points(valid_idx,:);
@@ -285,32 +310,42 @@ end
 %% Directly get bootstrap from exe7, for debugging continuous operation only
 debug = true;
 
-K = load('data/data_exe7/K.txt');
-S.P = load('data/data_exe7/keypoints.txt')'; %(row,col)
-S.X = load('data/data_exe7/p_W_landmarks.txt')';
+% Directly get bootstrap from exe7
+% K = load('data/data_exe7/K.txt');
+% S.P = load('data/data_exe7/keypoints.txt')'; %(row,col)
+% S.X = load('data/data_exe7/p_W_landmarks.txt')';
+
+S.X = p_W_landmarks';
+S.P = double(fliplr(keypoints))';
+
+
 S.X = [S.X; 1:size(S.X,2)]; % add a row to indicate the landmark index (for BA)
 S.C = [];%(row,col)
 S.F = [];%(row,col)
 S.F_W = []; % normalized image coordinates (expressed in world coordinate)
 S.T = [];
-S.est_trans = []; % estimated camera translation (3 x N)
-S.est_rot = [];% estimated camera rotation (9 x N)
+S.est_trans = loc(:); % estimated camera translation (3 x N)
+S.est_rot = ori(:);% estimated camera rotation (9 x N)
 
 % struct for bundle adjustment
 B.window_size = 5; %size of window to do bundle adjustment
 B.n_frame = 1;
 B.tau = [];
 B.landmarks = S.X;
-B.discard_idx = cell(1,window_size); % buffer recording which landmarks to discard
-B.observation = cell(1,window_size);
+B.discard_idx = cell(1,B.window_size); % buffer recording which landmarks to discard
+B.observation = cell(1,B.window_size);
 B.observation{1}.num_key = size(S.P,2);
 B.observation{1}.P = S.P; %(row,col)
 B.observation{1}.P_idx = S.X(4,:);
 
-database_image = imread('data/data_exe7/000000.png');
-bootstrap_frames = zeros(2,1);
-last_frame = 9;
+% database_image = imread('data/data_exe7/000000.png');
+% bootstrap_frames = zeros(2,1);
+% last_frame = 9;
 
+database_image = imread([kitti_path '/05/image_0/' ...
+        sprintf('%06d.png', 2)]);
+
+gt_scale = ground_truth./(ground_truth(3,2)/S.est_trans(3,1));
 %% Continuous operation
 
 % generate and initialize KLT tracker
@@ -330,7 +365,7 @@ KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
 r_discard_redundant = 5;
 
 % parameters for deciding whether or not to add a triangulated landmark
-angle_threshold = pi*3/180; %start with pi*10/180 dervie by Rule of the thumb:
+angle_threshold = pi/180; %start with pi*10/180 dervie by Rule of the thumb:
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -348,12 +383,12 @@ for i = range
         assert(false);
     end
     
-    %%%% only for debug
-    image = imread(['data/data_exe7/' sprintf('%06d.png',i)]);
+%     %%%% only for debug
+%     image = imread(['data/data_exe7/' sprintf('%06d.png',i)]);
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% assciate keypoints %%%%%%%%%%%%%%%%%%%%%%%
     % detect keypoints
-    [features, valid_key_candidates] = detectkeypoints(image); 
+    [features, valid_key_candidates] = detectkeypoints(image,'Harris'); 
     % figure(1); imshow(image); hold on;plot(valid_key_points); % plot
     
     % KLT tracking
@@ -397,7 +432,7 @@ for i = range
         initialize(KLT_tracker_C,fliplr(S.C'),image);
     end
     
-    plot_all(image,S,1,i)
+    plot_all(image,S,gt_scale,1,i)
 
     % Makes sure that plots refresh.    
     pause(0.1);

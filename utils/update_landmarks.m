@@ -32,19 +32,31 @@ angles = acos(sum(normalized_matched_candidate_world.*S.F_W,1)./...
     (vecnorm(normalized_matched_candidate_world).*vecnorm(S.F_W)));
 whehter_append = angles>angle_threshold;
 
+% plot_add_candidate_debug(S.C,fliplr(matched_points_candidate),image,image,validity_candidate,inliersIndex,angles);
 % append landmarks for candidate keypoints whose angle is larger
 % than given threshold
 num_added = sum(whehter_append);
 p_first = [flipud(S.F(:,whehter_append)); ones(1,num_added)]; %(u,v,1)
-M_vec_first = S.T(:,whehter_append);
+T_vec_first = S.T(:,whehter_append);
 p_current = [temp(:,whehter_append); ones(1,num_added)]; %(u,v,1)
 M_current = K*[R_C_W t_C_W];
 for ii = 1:num_added
-    M_first = K*[reshape(M_vec_first(1:9,ii),[3,3]) M_vec_first(10:12,ii)]; % can be speeded up for candidate from same first frame
+    M_first = K*[reshape(T_vec_first(1:9,ii),[3,3]) T_vec_first(10:12,ii)]; % can be speeded up for candidate from same first frame
     P_est = linearTriangulation(p_current(:,ii),p_first(:,ii),M_current,M_first);
-    S.X = [S.X, [P_est(1:3); S.X(4,end)+ii]]; % TODO: if speed up, pay attention to this
-    B.landmarks = [B.landmarks, [P_est(1:3); B.landmarks(4,end)+ii]]; % TODO: if speed up, pay attention to this
-    S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
+    
+    % for debug
+    reproj1 = M_current*P_est;
+    reproj1 = reproj1/reproj1(3);
+    reproj2 = M_first*P_est;
+    reproj2 = reproj2/reproj2(3);
+    if P_est(3) > -t_C_W(3) && norm(reproj1-p_current(:,ii)) < 5 && norm(reproj2-p_first(:,ii)) < 5
+        disp("reproject error is:"+[reproj1-p_current(:,ii),reproj2-p_first(:,ii)])
+        S.X = [S.X, [P_est(1:3); S.X(4,end)+ii]]; % TODO: if speed up, pay attention to this
+        B.landmarks = [B.landmarks, [P_est(1:3); B.landmarks(4,end)+ii]]; % TODO: if speed up, pay attention to this
+        S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
+    else
+        P_temp = R_C_W*P_est(1:3) + t_C_W;
+    end
 end
 
 % update state

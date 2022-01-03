@@ -121,6 +121,7 @@ while num_iterations > i
         num_iterations = log(1-confidence)/log(1-(1-outlier_ratio)^k);
         % cap the number of iterations at 15000
         num_iterations = min(15000, num_iterations);
+        num_iterations = max(10, num_iterations);
     end
     
     num_iteration_history(i) = num_iterations;
