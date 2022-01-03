@@ -55,13 +55,11 @@ if ds == 0
     % img1 = imread([kitti_path '/05/image_0/' ...
     %     sprintf('%06d.png',bootstrap_frames(2))]);
 
-    sz = size(img0);
-    img_seqs = ones(sz(1), sz(2), img_seq_len);
-
-    % import all images between bootstrap_frames 
+    img_seqs = cell(img_seq_len,1);
+    % import intermediate images between bootstrap_frames
     for i = 1:img_seq_len
         fr_idx = i + bootstrap_frames(1);
-        img_seqs(:,:,i) = imread([kitti_path '/05/image_0/' ...
+        img_seqs{i} = imread([kitti_path '/05/image_0/' ...
         sprintf('%06d.png', fr_idx)]);
     end
 elseif ds == 1
@@ -75,13 +73,11 @@ elseif ds == 1
     %     '/malaga-urban-dataset-extract-07_rectified_800x600_Images/' ...
     %     left_images(bootstrap_frames(2)).name]));
 
-    sz = size(img0);
-    img_seqs = ones(sz(1), sz(2), img_seq_len);
-
-    % import all images between bootstrap_frames 
+    img_seqs = cell(img_seq_len,1);
+    % import intermediate images between bootstrap_frames
     for i = 1:img_seq_len
         fr_idx = i + bootstrap_frames(1);
-        img_seqs(:,:,i) = rgb2gray(imread([malaga_path ...
+        img_seqs{i} = rgb2gray(imread([malaga_path ...
         '/malaga-urban-dataset-extract-07_rectified_800x600_Images/' ...
         left_images(fr_idx).name]));
     end
@@ -94,70 +90,67 @@ elseif ds == 2
     % img1 = rgb2gray(imread([parking_path ...
     %     sprintf('/images/img_%05d.png',bootstrap_frames(2))]));
 
-    sz = size(img0);
-    img_seqs = ones(sz(1), sz(2), img_seq_len);
-
-    % import all images between bootstrap_frames 
+    img_seqs = cell(img_seq_len,1);
+    % import intermediate images between bootstrap_frames
     for i = 1:img_seq_len
         fr_idx = i + bootstrap_frames(1);
-        img_seqs(:,:,i) = rgb2gray(imread([parking_path ...
+        img_seqs{i} = rgb2gray(imread([parking_path ...
         sprintf('/images/img_%05d.png',fr_idx)]));
     end
 else
     assert(false);
 end
 
-% KLT init
+%% initialization with KLT
 cameraParams = cameraParameters('IntrinsicMatrix', K');
-KLT_tracker_init = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
-    'MaxIterations',50,'MaxBidirectionalError',3);
+KLT_tracker_init = vision.PointTracker(...
+    'BlockSize',[15 15],...
+    'NumPyramidLevels',2,...
+    'MaxIterations',50, ...
+    'MaxBidirectionalError',3);
 
-landmark_3d = [];
-trans_array = [];
-
-[features_0, valid_key_candidates_0] = detectkeypoints(img0);
-init_points_ = valid_key_candidates_0.Location; % 10e3*10e2
+[features0, valid_key_candidates0] = detectkeypoints(img0);
+init_points_ = valid_key_candidates0.Location;
 initialize(KLT_tracker_init, init_points_, img0);
 
 for i = 1:img_seq_len-1
-    % todo: make img_seqs directly
-    % im2uint8 会转化成全部255，不太对
-    img_intermediate = uint8(img_seqs(:,:,i));
+    img_intermediate = img_seqs{i};
     [~,~] = KLT_tracker_init(img_intermediate);
 end
 
-img1 = uint8(img_seqs(:,:,img_seq_len));
-
+img1 = img_seqs{end};
 [matched_points1_, validity_img1] = KLT_tracker_init(img1);
-matched_points_valid = fliplr(matched_points1_(validity_img1,:));
+matched_points_valid = matched_points1_(validity_img1,:);
 
 init_points = init_points_(validity_img1,:);
 
 % method1: FundamentalMatrix without known camera parameters
-% [fRANSAC, inliers] = estimateFundamentalMatrix(flip(init_points),...
-% flip(matched_points_valid),'Method','RANSAC',...
-% 'NumTrials',2000,'DistanceThreshold',1e-2);
-% disp('Estimated inlier ratio from method2 is');
-% disp(nnz(inliers)/numel(inliers));
-% essMat = K'*fRANSAC*K;
+[fRANSAC, inliers] = estimateFundamentalMatrix( ...
+    init_points,matched_points_valid, ...
+    'Method','RANSAC',...
+    'NumTrials',2000, ...
+    'DistanceThreshold',1e-2);
+disp('Estimated inlier ratio from method2 is');
+disp(nnz(inliers)/numel(inliers));
+essMat = K'*fRANSAC*K;
 
 % method2: EssentialMatrix with known camera parameters
-[essMat, inliers] = estimateEssentialMatrix(init_points,matched_points_valid,cameraParams);
-disp('Estimated inlier ratio from method1 is');
-disp(nnz(inliers)/numel(inliers));
+% [essMat, inliers] = estimateEssentialMatrix(init_points,matched_points_valid,cameraParams);
+% disp('Estimated inlier ratio from method1 is');
+% disp(nnz(inliers)/numel(inliers));
 
 % choose inlier points
 init_points = init_points(inliers,:);
 matched_points_valid = matched_points_valid(inliers,:);
 
 % visualize for detected feature debugging
-plot_KLT_debug(...
-    fliplr(init_points_)', ...
-    fliplr(matched_points1_),...
-    img0,...
-    img1,...
-    validity_img1,...
-    inliers);
+% plot_KLT_debug(...
+%     fliplr(init_points_)', ...
+%     fliplr(matched_points1_),...
+%     img0,...
+%     img1,...
+%     validity_img1,...
+%     inliers);
 
 % estimate relative pose relative to frame previous frame
 [ori, loc] = relativeCameraPose(...
@@ -165,63 +158,60 @@ plot_KLT_debug(...
     cameraParams,...
     init_points,...
     matched_points_valid);
-% disp('Found transformation T_C_W = ');
-% T_C_W = [ori loc'; zeros(1, 3) 1];
-% disp(T_C_W);
-% rot_mat = ori';
-% trans_vec = -ori'*loc';
 [rot_mat, trans_vec] = cameraPoseToExtrinsics(ori, loc);
 
 % compute projection matrix
 proj_mat0 = compProjMat(eye(3), [0 0 0]', cameraParams.IntrinsicMatrix');
 proj_mat1 = compProjMat(rot_mat, trans_vec', cameraParams.IntrinsicMatrix');
 
-
-% exe6 solution
-% to homogeneous pixel coordinate
+% convert to homogeneous pixel coordinate
 init_points_homo = [init_points'; ones(1,length(init_points))];
 matched_points_valid_homo = [matched_points_valid'; ones(1,length(matched_points_valid))];
-% pts3d: samples x 4
+% pts3d (samples x 4)
 pts3d = linearTriangulation(...
     init_points_homo, ...
     matched_points_valid_homo, ...
     proj_mat0, ...
     proj_mat1);
-% choose first three dimensions
+% back from homogeneous coordinate
 pts3d = pts3d(1:3,:)';
 
 % filter points according to height (optional)
-% consider points lower than `max_height`
-consider_height = false; % true, false
-if consider_height
+% consider points between [min_z, max_z]
+consider_z = true; % true, false
+if consider_z
     disp(max(pts3d(3,:)))
     disp(min(pts3d(3,:))) % 可能存在 -7.7913 的点
-    min_height = -2.0;
-    max_height = 30.0;
-    valid_idx = (pts3d(:,3) >= min_height) & (pts3d(:,3) <= max_height);
+    min_z = 0.0;
+    max_z = 100.0;
+    valid_idx = (pts3d(:,3) >= min_z) & (pts3d(:,3) <= max_z);
     pts3d = pts3d(valid_idx,:);
     init_points = init_points(valid_idx,:);
     matched_points_valid = matched_points_valid(valid_idx,:);
 end
-% filter points according to height (optional)
 
-% initial results
-p_W_landmarks = pts3d;
-keypoints = matched_points_valid;
+% initial results for continuous operation
+p_W_landmarks = double(pts3d);
+keypoints = double(matched_points_valid);
 
 % debug trangulated points
-% figure(111)
-% plot3(p_W_landmarks(:,1), p_W_landmarks(:,2), p_W_landmarks(:,3), 'o');
-% Display camera pose
-% plotCoordinateFrame(R_C_W', t_W_C', 2);
-% 这里可视化有点问题，如果分步执行好像没有什么问题，
-% 但是不间隔执行以下两步会出现箭头颠倒的情况
-% plotCoordinateFrame(eye(3), [0 0 0]', 2);
-% text(-0.1,-0.1,-0.1,'Cam 1','fontsize',10,'color','k','FontWeight','bold');
-% plotCoordinateFrame(ori', trans_vec', 2);
-% text(trans_vec(1)-0.1, trans_vec(2)-0.1, trans_vec(3)-0.1,'Cam 2','fontsize',10,'color','k','FontWeight','bold');
+if debug_trangulation
+    figure(111)
+    plot3(p_W_landmarks(:,1), p_W_landmarks(:,2), p_W_landmarks(:,3), 'o');
+    % display camera pose
+    plotCoordinateFrame(eye(3), [0 0 0]', 5);
+    text(-0.1,-0.1,-0.1,'Cam 1', ...
+        'fontsize',10, ...
+        'color','k', ...
+        'FontWeight','bold');
+    plotCoordinateFrame(ori', trans_vec', 5);
+    text(trans_vec(1)-0.1, trans_vec(2)-0.1, trans_vec(3)-0.1,'Cam 2', ...
+        'fontsize',10, ...
+        'color','k', ...
+        'FontWeight','bold');
+end
 
-% patch matching
+%% initialization with patch matching
 patch_matching = false;
 if patch_matching
     corner_patch_size = 9;
