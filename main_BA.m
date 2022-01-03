@@ -3,14 +3,14 @@ close all;clear;clc;
 
 % add path of functions
 addpath(genpath('utils'))
-addpath('Continuous_operation')
-addpath('Initialization')
+addpath('Continuous_operation')  
+addpath('Initialization')  
 
-ds = 0; % 0: KITTI, 1: Malaga, 2: parking
+ds = 1; % 0: KITTI, 1: Malaga, 2: parking
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
-    kitti_path = 'data/kitti';
+    kitti_path = 'data/kitti'; 
     assert(exist('kitti_path', 'var') ~= 0);
     ground_truth = load([kitti_path '/poses/05.txt']);
     ground_truth = ground_truth(:, [end-8 end]);
@@ -35,7 +35,7 @@ elseif ds == 2
     assert(exist('parking_path', 'var') ~= 0);
     last_frame = 598;
     K = load([parking_path '/K.txt']);
-
+     
     ground_truth = load([parking_path '/poses.txt']);
     ground_truth = ground_truth(:, [end-8 end]);
 else
@@ -282,19 +282,30 @@ if patch_matching
     matchedPoints1 = [matchedPoints1;ones(1,length(matchedPoints1))];
 end
 
-
-
 %% Directly get bootstrap from exe7, for debugging continuous operation only
 debug = true;
 
 K = load('data/data_exe7/K.txt');
 S.P = load('data/data_exe7/keypoints.txt')'; %(row,col)
 S.X = load('data/data_exe7/p_W_landmarks.txt')';
+S.X = [S.X; 1:size(S.X,2)]; % add a row to indicate the landmark index (for BA)
 S.C = [];%(row,col)
 S.F = [];%(row,col)
 S.F_W = []; % normalized image coordinates (expressed in world coordinate)
 S.T = [];
-idx = rand(200,1);
+S.est_trans = []; % estimated camera translation (3 x N)
+S.est_rot = [];% estimated camera rotation (9 x N)
+
+% struct for bundle adjustment
+B.window_size = 5; %size of window to do bundle adjustment
+B.n_frame = 1;
+B.tau = [];
+B.landmarks = S.X;
+B.discard_idx = cell(1,window_size); % buffer recording which landmarks to discard
+B.observation = cell(1,window_size);
+B.observation{1}.num_key = size(S.P,2);
+B.observation{1}.P = S.P; %(row,col)
+B.observation{1}.P_idx = S.X(4,:);
 
 database_image = imread('data/data_exe7/000000.png');
 bootstrap_frames = zeros(2,1);
@@ -307,7 +318,7 @@ last_frame = 9;
 KLT_tracker_L = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
     'MaxIterations',50,'MaxBidirectionalError',3);
 initialize(KLT_tracker_L,fliplr(S.P'),database_image);
-% [features, valid_key_points] = detectkeypoints(database_image);
+% [features, valid_key_points] = detectkeypoints(database_image); 
 % initialize(KLT_tracker_c,valid_key_points.Location,database_image);
 prev_img = database_image;
 
@@ -319,8 +330,8 @@ KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
 r_discard_redundant = 5;
 
 % parameters for deciding whether or not to add a triangulated landmark
-angle_threshold = pi*5/180; %start with pi*10/180 dervie by Rule of the thumb:
-
+angle_threshold = pi*3/180; %start with pi*10/180 dervie by Rule of the thumb:
+    
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
     fprintf('\n\nProcessing frame %d\n=====================\n', i);
@@ -336,128 +347,60 @@ for i = range
     else
         assert(false);
     end
-
+    
     %%%% only for debug
     image = imread(['data/data_exe7/' sprintf('%06d.png',i)]);
-
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% assciate keypoints %%%%%%%%%%%%%%%%%%%%%%%
     % detect keypoints
-    [features, valid_key_candidates] = detectkeypoints(image);
+    [features, valid_key_candidates] = detectkeypoints(image); 
     % figure(1); imshow(image); hold on;plot(valid_key_points); % plot
-
+    
     % KLT tracking
     [matched_points,validity] = KLT_tracker_L(image);
     matched_points_valid = fliplr(matched_points(validity,:));
-
+    
     % perform RANSAC to find best Pose and inliers
     [R_C_W, t_C_W, inlier_mask, max_num_inliers_history, num_iteration_history] = ...
-        ransacLocalization(matched_points_valid', S.X(:,validity), K);
+        ransacLocalization(matched_points_valid', S.X(1:3,validity), K);
+    M_C_W = [R_C_W, t_C_W];
+    
     R_W_C = R_C_W';
     T_W_C = -R_C_W'*t_C_W;
-
+    M_W_C = [R_W_C, T_W_C];
+    
+    S.est_trans = [S.est_trans, T_W_C];
+    S.est_rot = [S.est_rot, R_W_C(:)];
+    
     % plotting
 %     plot_KLT_debug(S.P,fliplr(matched_points),prev_img,image,validity,inlier_mask);
-
-    % update KLT_tracker (for landmarks)
-    release(KLT_tracker_L);
+    
+    % discard unmatched landmarks
     S.P = matched_points_valid((inlier_mask)>0,:)';
     S.X = S.X(:,validity);
     S.X = S.X(:,(inlier_mask)>0);
-    initialize(KLT_tracker_L,fliplr(S.P'),image);
-
+    
     % track candidate keypoints
     if ~isempty(S.C)
-        [matched_points_candidate,validity_candidate] = KLT_tracker_C(image);
-        matched_points_valid_candidate = fliplr(matched_points_candidate(validity_candidate,:)); %(u,v) to (row,col)
-
-        [~,inliersIndex] = estimateFundamentalMatrix(S.C(:,validity_candidate)',matched_points_valid_candidate);
-        matched_points_valid_candidate = matched_points_valid_candidate(inliersIndex,:);
-        % plotting
-%         plot_KLT_debug(S.C,fliplr(matched_points_candidate),prev_img,image,validity_candidate,true(1,sum(validity_candidate)));
-        plot_KLT_debug(S.C,fliplr(matched_points_candidate),prev_img,image,validity_candidate,inliersIndex);
-
-        S.F = S.F(:,validity_candidate);
-        S.F = S.F(:,inliersIndex);
-        S.F_W = S.F_W(:,validity_candidate);
-        S.F_W = S.F_W(:,inliersIndex);
-        S.T = S.T(:,validity_candidate);
-        S.T = S.T(:,inliersIndex);
-
-        % calculate angle
-        temp = fliplr(matched_points_valid_candidate)'; % (row, col) to (u,v)
-        normalized_matched_candidate = K\[temp; ones(1,size(temp,2))];
-        normalized_matched_candidate_world = R_W_C*normalized_matched_candidate...
-            + repmat(T_W_C, [1 size(normalized_matched_candidate,2)]);
-        angles = acos(sum(normalized_matched_candidate_world.*S.F_W,1)./...
-            (vecnorm(normalized_matched_candidate_world).*vecnorm(S.F_W)));
-        whehter_append = angles>angle_threshold;
-
-        % append landmarks for candidate keypoints whose angle is larger
-        % than given threshold
-        num_added = sum(whehter_append);
-        p_first = [flipud(S.F(:,whehter_append)); ones(1,num_added)]; %(u,v,1)
-        M_vec_first = S.T(:,whehter_append);
-        p_current = [temp(:,whehter_append); ones(1,num_added)]; %(u,v,1)
-        M_current = K*[R_C_W t_C_W];
-        for ii = 1:num_added
-            M_first = K*[reshape(M_vec_first(1:9,ii),[3,3]) M_vec_first(10:12,ii)]; % can be speeded up for candidate from same first frame
-            P_est = linearTriangulation(p_current(:,ii),p_first(:,ii),M_current,M_first);
-            S.X = [S.X, P_est(1:3)];
-            S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col)
-        end
-
-        % update state
-        S.C = matched_points_valid_candidate(~whehter_append,:)';
-        S.F = S.F(:,~whehter_append);
-        S.F_W = S.F_W(:,~whehter_append);
-        S.T = S.T(:,~whehter_append);
+        [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,angle_threshold);
     end
-
-    % discard redundant new candidate keypoints (whose distance to any
-    % existing keypoints is less than 'r_discard_redundant')
-    redundant_map = ones(size(image));
-    for ii = 1:size(S.P,2)
-        redundant_map(max(1,floor(S.P(1,ii)-r_discard_redundant)):...
-            min(ceil(S.P(1,ii)+r_discard_redundant),size(redundant_map,1)),...
-            max(1,floor(S.P(2,ii)-r_discard_redundant)):...
-            min(ceil(S.P(2,ii)+r_discard_redundant),size(redundant_map,2))) = 0;
-    end
-
-    for ii = 1:size(S.C,2)
-        redundant_map(max(1,floor(S.C(1,ii)-r_discard_redundant)):...
-            min(ceil(S.C(1,ii)+r_discard_redundant),size(redundant_map,1)),...
-            max(1,floor(S.C(2,ii)-r_discard_redundant)):...
-            min(ceil(S.C(2,ii)+r_discard_redundant),size(redundant_map,2))) = 0;
-    end
-
-    no_discard = ones(size(valid_key_candidates.Location,1),1);
-    for ii = 1:size(valid_key_candidates.Location,1)
-        no_discard(ii) = redundant_map(round(valid_key_candidates.Location(ii,2)),round(valid_key_candidates.Location(ii,1)));
-    end
-    no_discard = logical(no_discard);
-
-    % plot for debugging
-%     plot_discard_debug(image,S,valid_key_candidates,no_discard)
-
-    valid_key_candidates = valid_key_candidates(no_discard);
-    S.C = [S.C, double(flipud(valid_key_candidates.Location'))];
-    S.F = [S.F, double(flipud(valid_key_candidates.Location'))];
-    unnormalized_camera_coord = [double(valid_key_candidates.Location');...
-        ones(1,size(valid_key_candidates.Location,1))]; % (u,v)
-    normalized_camera_coord = K\unnormalized_camera_coord;
-    normalized_camera_coord_world = R_W_C*normalized_camera_coord...
-        + repmat(T_W_C, [1 size(normalized_camera_coord,2)]);
-    S.F_W = [S.F_W normalized_camera_coord_world];
-    S.T = [S.T, repmat([R_C_W(:);t_C_W(:)],1,size(valid_key_candidates.Location,1))];
-
+        
+    S = update_candidate(S,valid_key_candidates,image,K,r_discard_redundant);
+    
+    % update KLT_tracker (for landmarks)
+    release(KLT_tracker_L);
+    initialize(KLT_tracker_L,fliplr(S.P'),image);
+    
     % update KLT_tracker (for candidate)
     if ~isempty(S.C)
         release(KLT_tracker_C);
         initialize(KLT_tracker_C,fliplr(S.C'),image);
     end
+    
+    plot_all(image,S,1,i)
 
-    % Makes sure that plots refresh.
-    pause(0.01);
-
+    % Makes sure that plots refresh.    
+    pause(0.1);
+    
     prev_img = image;
 end

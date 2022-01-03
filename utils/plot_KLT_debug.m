@@ -1,5 +1,6 @@
 function plot_KLT_debug(keypoint_database,matched_points,prev_image,image,validity,inlier_mask)
 figure(1)
+set(gcf,'outerposition',get(0,'screensize'));
 subplot(2, 2, 1);
 imshow(prev_image)
 hold on
