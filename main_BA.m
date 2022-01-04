@@ -341,7 +341,7 @@ switch ds % 0: KITTI, 1: Malaga, 2: parking
         gt_scale = ground_truth./(ground_truth(bootstrap_frames(2)+1,1)/S.est_trans(1,1)); % for praking
 end
 
-plot_all(database_image,S,gt_scale,1,bootstrap_frames(2))
+plot_all(database_image,S,gt_scale,2,bootstrap_frames(2))
 %% Continuous operation
 
 % generate and initialize KLT tracker
@@ -431,7 +431,7 @@ for i = range
     S.num_X = [S.num_X; size(S.X,2)];
     S.num_C = [S.num_C; size(S.C,2)];
 
-    plot_all(image,S,gt_scale,1,i)
+    plot_all(image,S,gt_scale,2,i)
 
     % Makes sure that plots refresh.    
     pause(0.1);
