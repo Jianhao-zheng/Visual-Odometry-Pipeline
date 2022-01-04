@@ -10,7 +10,9 @@ if ~isempty(S.C)
 end
 scatter(S.P(2,:),S.P(1,:),'ro');
 hold off; 
-legend('candidate keypoints','existing keypoints','FontSize',12);
+if ~isempty(S.C)
+    legend('candidate keypoints','existing keypoints','FontSize',12);
+end
 title('Current frame: No.'+string(i));
 
 subplot(2, 4, 5); 
