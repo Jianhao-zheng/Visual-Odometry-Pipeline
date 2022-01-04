@@ -14,10 +14,13 @@ legend('candidate keypoints','existing keypoints','FontSize',12);
 title('Current frame: No.'+string(i));
 
 subplot(2, 4, 5); 
-scatter3(S.X(1,:),S.X(2,:),S.X(3,:),'gx');
-% hold on; 
-% scatter(S.P(2,:),S.P(1,:),'ro');
-% legend('candidate keypoints','existing keypoints','FontSize',12);
+plot(S.num_X,'g')
+hold on; 
+plot(S.num_C,'r')
+hold on; 
+plot(S.num_new,'b')
+hold off; 
+legend('# of keypoints','# of candidates','# of new key','FontSize',8);
 title('Current frame: No.'+string(i));
 
 subplot(2, 4, 6); 

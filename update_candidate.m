@@ -40,7 +40,7 @@ unnormalized_camera_coord = [double(valid_key_candidates.Location');...
 normalized_camera_coord = K\unnormalized_camera_coord;
 normalized_camera_coord_world = R_W_C*normalized_camera_coord...
     + repmat(T_W_C, [1 size(normalized_camera_coord,2)]);
-S.F_W = [S.F_W normalized_camera_coord_world];
+S.F_W = [S.F_W normalized_camera_coord_world-T_W_C];
 S.T = [S.T, repmat([R_C_W(:);t_C_W(:)],1,size(valid_key_candidates.Location,1))];
 
 end
