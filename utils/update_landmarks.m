@@ -45,6 +45,7 @@ P_current = vector_3d(:,whehter_append); %dir vectors in current frame
 angle_append = angles(:,whehter_append);
 M_current = K*[R_C_W t_C_W];
 num = [0;0;0]; % to count outlier because of other reason
+
 for ii = 1:num_added
     M_first = K*[reshape(T_vec_first(1:9,ii),[3,3]) T_vec_first(10:12,ii)]; % can be speeded up for candidate from same first frame
     P_est = linearTriangulation(p_current(:,ii),p_first(:,ii),M_current,M_first);
@@ -71,19 +72,21 @@ for ii = 1:num_added
 %         P_est = [R_W_C T_W_C; zeros(1,3) 1]*P_temp;
 %     end
         
-    if P_est(3) > T_W_C(3) && norm(reproj1-p_current(:,ii)) < 30 && norm(reproj2-p_first(:,ii)) < 30
-        disp("reproject error is:"+[reproj1-p_current(:,ii),reproj2-p_first(:,ii)])
-        S.X = [S.X, [P_est(1:3); S.X(4,end)+ii]]; % TODO: if speed up, pay attention to this
-        B.landmarks = [B.landmarks, [P_est(1:3); B.landmarks(4,end)+ii]]; % TODO: if speed up, pay attention to this
+    if P_est(3) > T_W_C(3) && norm(reproj1-p_current(:,ii)) < 40 && norm(reproj2-p_first(:,ii)) < 40
+%         disp("reproject error is:"+[reproj1-p_current(:,ii),reproj2-p_first(:,ii)])
+        S.X = [S.X, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
+        B.landmarks = [B.landmarks, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
+        B.new_idx = B.new_idx + 1;
+        B.m = size(B.landmarks,2);
         S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
     else
         if P_est(3) <= T_W_C(3)
             num(1) = num(1) + 1;
         end
-        if norm(reproj1-p_current(:,ii)) > 30
+        if norm(reproj1-p_current(:,ii)) > 50
             num(2) = num(2) + 1;
         end
-        if norm(reproj2-p_first(:,ii)) > 30
+        if norm(reproj2-p_first(:,ii)) > 50
             num(3) = num(3) + 1;
         end
     end

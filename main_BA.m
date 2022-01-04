@@ -219,7 +219,7 @@ pts3d = pts3d(1:3,:)';
 
 % filter points according to height (optional)
 % consider points between [min_z, max_z]
-consider_z = true; % true, false
+consider_z = false; % true, false
 if consider_z
     disp(max(pts3d(3,:)))
     disp(min(pts3d(3,:))) % 可能存在 -7.7913 的点
@@ -290,6 +290,8 @@ debug = true;
 S.X = p_W_landmarks';
 S.P = double(fliplr(keypoints))';
 
+% S.X = pts3d(1:3,:);
+% S.P = double(fliplr(keypoints))';
 
 S.X = [S.X; 1:size(S.X,2)]; % add a row to indicate the landmark index (for BA)
 S.C = [];%(row,col)
@@ -298,20 +300,26 @@ S.F_W = []; % vectors pointing from optical center to normalized image coordinat
 S.T = [];
 S.est_trans = loc(:); % estimated camera translation (3 x N)
 S.est_rot = ori(:);% estimated camera rotation (9 x N)
+
+% S.est_trans = t(1:3,4); % estimated camera translation (3 x N)
+% temp = t(1:3,1:3);
+% S.est_rot = temp(:);% estimated camera rotation (9 x N)
+
 S.num_X = size(S.X,2);
 S.num_C = size(S.C,2);
 S.num_new = 0;
 
 % struct for bundle adjustment
 B.window_size = 5; %size of window to do bundle adjustment
-B.n_frame = 1;
-B.tau = [];
+B.n = 1;
+B.m = size(S.X,2);
+B.tau = optimized_hidden_state(1:6);
 B.landmarks = S.X;
 B.discard_idx = cell(1,B.window_size); % buffer recording which landmarks to discard
 B.observation = cell(1,B.window_size);
-B.observation{1}.num_key = size(S.P,2);
-B.observation{1}.P = S.P; %(row,col)
-B.observation{1}.P_idx = S.X(4,:);
+B.observation{1} = O_2;
+B.new_idx = B.m + 1; %index when adding new keypoints
+
 
 % database_image = imread('data/data_exe7/000000.png');
 % bootstrap_frames = zeros(2,1);
@@ -330,7 +338,7 @@ switch ds % 0: KITTI, 1: Malaga, 2: parking
     case 2
         database_image = rgb2gray(imread([parking_path ...
                 sprintf('/images/img_%05d.png',bootstrap_frames(2))]));
-        gt_scale = ground_truth./(ground_truth(3,1)/S.est_trans(1,1)); % for praking
+        gt_scale = ground_truth./(ground_truth(bootstrap_frames(2)+1,1)/S.est_trans(1,1)); % for praking
 end
 
 plot_all(database_image,S,gt_scale,1,bootstrap_frames(2))
@@ -404,10 +412,10 @@ for i = range
     S.X = S.X(:,(inlier_mask)>0);
     
     % track candidate keypoints
-%     if ~isempty(S.C)
-% %         [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,angle_threshold);
-%     end
-        
+    if ~isempty(S.C)
+        [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,angle_threshold);
+    end
+    [S,B] = VO_bundle_adjust(S,B,M_W_C,K);
     S = update_candidate(S,valid_key_candidates,image,K,r_discard_redundant);
     
     % update KLT_tracker (for landmarks)
