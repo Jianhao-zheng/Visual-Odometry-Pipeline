@@ -9,7 +9,7 @@ fh.Position = [10 10 1200 800];
 % https://ch.mathworks.com/matlabcentral/fileexchange/27991-tight_subplot-nh-nw-gap-marg_h-marg_w
 % use tight_subplot to control subplot spacing
 % [ha, pos] = tight_subplot(Nh, Nw, gap, marg_h, marg_w)
-[ha, ~] = tight_subplot(2,2,[.02 .05],[.1 .01],[.01 .01]);
+[ha, ~] = tight_subplot(2,2,[.02 .05],[.05 .05],[.05 .05]);
 
 
 %subplot(2, 2, 1);

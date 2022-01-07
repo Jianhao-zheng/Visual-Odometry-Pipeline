@@ -6,7 +6,7 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')
 addpath('Initialization')
 
-ds = 0; % 0: KITTI, 1: Malaga, 2: parking
+ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
@@ -82,7 +82,7 @@ elseif ds == 1
         left_images(fr_idx).name]));
     end
 elseif ds == 2
-    bootstrap_frames = [0 2]; % naming from `img_00000.png`
+    bootstrap_frames = [0 4]; % naming from `img_00000.png`
     img_seq_len = bootstrap_frames(2) - bootstrap_frames(1);
 
     img0 = rgb2gray(imread([parking_path ...
@@ -109,7 +109,8 @@ KLT_tracker_init = vision.PointTracker(...
     'MaxIterations',50, ...
     'MaxBidirectionalError',3);
 
-[features0, valid_key_candidates0] = detectkeypoints(img0);
+% [features0, valid_key_candidates0] = detectkeypoints(img0);
+[features0, valid_key_candidates0] = genKeypoints(img0);
 init_points_ = valid_key_candidates0.Location;
 initialize(KLT_tracker_init, init_points_, img0);
 
@@ -159,6 +160,9 @@ plotMatchRes(...
     init_points,...
     matched_points_valid);
 [rot_mat, trans_vec] = cameraPoseToExtrinsics(ori, loc);
+% disp(ground_truth(bootstrap_frames(2),:))
+% disp(rot_mat)
+% disp(trans_vec)
 
 % compute projection matrix
 proj_mat0 = compProjMat(eye(3), [0 0 0]', cameraParams.IntrinsicMatrix');
