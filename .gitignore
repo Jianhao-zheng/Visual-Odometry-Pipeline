@@ -1,4 +1,15 @@
-data/
+# dataset
+data/kitti
+data/malaga
+data/parking
+data/data_exe7
+!data/lausanne_center_nav/
+data/lausanne_center_nav/image
+
+# folders
 archive/
+
+# extensions
 *.asv
 *.zip
+*.bag
