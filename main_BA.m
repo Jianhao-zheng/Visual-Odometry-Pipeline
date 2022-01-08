@@ -47,7 +47,7 @@ if ds == 0
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 100};
+    hyper_paras.feature_extract_options = {'MetricThreshold', 1500};
     hyper_paras.min_depth = 1; 
     hyper_paras.r_discard_redundant = 5;
     hyper_paras.max_depth = 100;
@@ -175,14 +175,20 @@ S.num_C = size(S.C,2);
 S.num_new = 0;
 
 % struct for bundle adjustment
-B.window_size = 5; %size of window to do bundle adjustment
-B.n = 1;
+B.window_size = 3; %size of window to do bundle adjustment (# of keyframes)
+B.keyframe_d = 2; % we choose keyframe with constant distance
+B.num_key = 1; % number of keyframes stored
+B.count_frame = 0; % auxiliary variable to decide whether next is a key frame, taking value from [0,..,B.keyframe_d]
 B.m = size(S.X,2);
 B.tau = HomogMatrix2twist(T_init_WC);
 B.landmarks = S.X;
-B.discard_idx = cell(1,B.window_size); % buffer recording which landmarks to discard
 B.observation = cell(1,B.window_size);
-% B.observation{1} = O_2;
+temp = flipud(S.P);
+B.observation{1} = [B.m;temp(:);(1:B.m)'];
+
+B.normal_frame_refine = cell(1,(B.window_size-1)*B.keyframe_d);
+B.num_normal_frame = 0;
+
 B.new_idx = B.m + 1; %index when adding new keypoints
 
 
@@ -259,7 +265,7 @@ for i = range
     if ~isempty(S.C)
         [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,hyper_paras);
     end
-%     [S,B] = VO_bundle_adjust(S,B,M_W_C,K);
+    [S,B] = VO_bundle_adjust(S,B,T_W_C,K);
 
     S = update_candidate(S,valid_key_candidates,image,K,hyper_paras);
 

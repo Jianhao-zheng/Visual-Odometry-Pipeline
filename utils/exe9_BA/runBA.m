@@ -38,11 +38,22 @@ if with_pattern
     end
 %     figure(4);
 %     spy(pattern);
+    
+    % don't optimize landmarks coordinate if it's not matched for all key
+    % frames
+    for i = observations(1)*6+1:size(pattern,2)
+        if length(find(pattern(:,i)>0)) < observations(1)*2
+            pattern(:,i) = 0;
+        end
+    end
+    
+%     figure(5)
+%     spy(pattern);
 end
 
 % Also here, using an external error function for clean code.
 error_terms = @(hidden_state) baError(hidden_state, observations, K);
-options = optimoptions(@lsqnonlin, 'Display', 'None', ...
+options = optimoptions(@lsqnonlin, 'Display', 'iter', ...
     'MaxIter', 5);
 if with_pattern
     options.JacobPattern = pattern;
