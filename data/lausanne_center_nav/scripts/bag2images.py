@@ -68,12 +68,29 @@ def main():
         default="/camera_left/color/camera_info",
         help="Camera info topic.",
     )
+    parser.add_argument(
+        "--starting_frame",
+        default=90,
+        type=int,
+    )
+    parser.add_argument(
+        "--ending_frame",
+        default=500,
+        type=int,
+    )
+    parser.add_argument(
+        "--subsample",
+        default=3,
+        type=int,
+    )
     parser.add_argument("--bgr2rgb", dest="bgr2rgb", action="store_true")
     parser.set_defaults(bgr2rgb=True)
 
     args = parser.parse_args()
 
     bagname = args.bag_file.split('/')[-1].split('.')[0]
+
+    print(bagname)
 
     if args.output_dir is None:
         img_save_path = os.path.join(curr_dir_path, bagname)
@@ -88,25 +105,36 @@ def main():
     )
 
     bag = rosbag.Bag(args.bag_file, "r")
+
     extract_image = True
     if extract_image:
         bridge = CvBridge()
-        count = 0
+        fr_cnt = 0
+        data_cnt = 0
+        print(fr_cnt, data_cnt)
         ts_list = []
         for topic, msg, t in bag.read_messages(topics=[args.image_topic]):
-            cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-            img_ts = ts_to_sec(t)
+            if fr_cnt < args.starting_frame:
+                pass
+            elif fr_cnt > args.ending_frame:
+                break
+            else:
+                if fr_cnt % args.subsample == 0:
+                    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+                    img_ts = ts_to_sec(t)
 
-            if args.bgr2rgb:
-                cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+                    if args.bgr2rgb:
+                        cv_img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
 
-            ts_list.append(img_ts)
+                    ts_list.append(img_ts)
 
-            # cv2.imwrite(os.path.join(img_save_path, "frame%06i.png" % count), cv_img)
-            cv2.imwrite(os.path.join(img_save_path, "%06i.png" % count), cv_img)
-            # print("Wrote image %i" % count)
+                    # cv2.imwrite(os.path.join(img_save_path, "frame%06i.png" % count), cv_img)
+                    img_path = os.path.join(img_save_path, "%04i.png" % data_cnt)
+                    cv2.imwrite(img_path, cv_img)
+                    print("Frame {}: {}".format(fr_cnt, img_path))
+                    data_cnt += 1
 
-            count += 1
+            fr_cnt += 1
 
         ts_np = np.array(ts_list)
         raw_dict = {
@@ -150,8 +178,9 @@ def main():
             'D': distortion_coeff,
         }
         if extract_image:
-            fps = count / (ts_np.max() - ts_np.min())
+            fps = data_cnt / (ts_np.max() - ts_np.min())
         cam_info_dict.update({'fps': fps})
+        print("FPS of the generated data is {} Hz".format(fps))
         cam_info_path = os.path.join(img_save_path, '..', 'cam_info.json')
         with open(cam_info_path, 'w') as cam_info_file:
             json.dump(cam_info_dict, cam_info_file, indent=4, sort_keys=False)

@@ -1,5 +1,5 @@
 function [features, valid_key_points] = genKeypoints(image, method,options)
-%%% defalut method is harris
+%%% defalut method is SURF
 if nargin == 1
     method = 'SURF';
 end
