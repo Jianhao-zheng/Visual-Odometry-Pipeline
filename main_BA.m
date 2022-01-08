@@ -18,8 +18,8 @@ hyper_paras.feature_extract_options = {'MetricThreshold', 10};
 % feature_extract = 'Harris';
 % feature_extract_options = {'MinQuality',1e-6};
 
-hyper_paras.matching = 'KLT'; % method to matching keypoints, two options: ['KLT', 'Des_match']
-hyper_paras.SFM_pose = 'Fundamental'; % method to estimate pose from 2D-2D, two options: ['Fundamental', 'Essential']
+hyper_paras.init_matching_method = 'KLT'; % method to matching keypoints, two options: ['KLT', 'Des_match']
+hyper_paras.sfm_pose = 'fundamental'; % method to estimate pose from 2D-2D, two options: ['fundamental', 'essential']
 
 % range of vaild landmarks (filter out points behind and too far from the
 % camera)
@@ -144,7 +144,7 @@ end
 %% Initialization
 cameraParams = cameraParameters('IntrinsicMatrix', K');
 
-[init_points,matched_points] = mathcing_initialization(img0,img_seqs,hyper_paras);
+[init_points,matched_points] = matching_init(img0,img_seqs,hyper_paras);
 
 [T_init_WC,init_points_valid,matched_points_valid] = pose_estimation_init(init_points,matched_points,K,hyper_paras);
 

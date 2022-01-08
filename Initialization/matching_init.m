@@ -1,7 +1,7 @@
-function [init_points,matched_points] = mathcing_initialization(img0,img_seqs,hyper_paras)
+function [init_points,matched_points] = matching_init(img0,img_seqs,hyper_paras)
 img_seq_len = length(img_seqs);
 
-switch hyper_paras.matching
+switch hyper_paras.init_matching_method
     case 'KLT'
         KLT_tracker_init = vision.PointTracker(...
             'NumPyramidLevels',5,...
