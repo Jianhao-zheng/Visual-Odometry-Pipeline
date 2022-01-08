@@ -19,6 +19,7 @@ hyper_paras.feature_extract_options = {'MetricThreshold', 10};
 % feature_extract_options = {'MinQuality',1e-6};
 
 hyper_paras.init_matching_method = 'KLT'; % method to matching keypoints, two options: ['KLT', 'Des_match']
+hyper_paras.show_match_res = false;
 hyper_paras.sfm_pose = 'fundamental'; % method to estimate pose from 2D-2D, two options: ['fundamental', 'essential']
 
 % range of vaild landmarks (filter out points behind and too far from the
