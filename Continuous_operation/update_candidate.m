@@ -14,9 +14,11 @@ if ~isempty(S.C)
     for i = 1:size(new_candidate,1)
         u_range = [new_candidate(i,1)-r,new_candidate(i,1)+r];
         v_range = [new_candidate(i,2)-r,new_candidate(i,2)+r];
-        check_near = S.C(2,:) >= u_range(1) & S.C(2,:) <= u_range(2) &...
+        check_near_C = S.C(2,:) >= u_range(1) & S.C(2,:) <= u_range(2) &...
                      S.C(1,:) >= v_range(1) & S.C(1,:) <= v_range(2);  % S.C follows [row,col]
-        if sum(check_near) == 0
+        check_near_P = S.P(2,:) >= u_range(1) & S.P(2,:) <= u_range(2) &...
+                     S.P(1,:) >= v_range(1) & S.P(1,:) <= v_range(2);  % S.P follows [row,col]
+        if sum(check_near_C) == 0 && sum(check_near_P) == 0
             new_valid_candidate = [new_valid_candidate, [new_candidate(i,2);new_candidate(i,1)]];
         end
     end
