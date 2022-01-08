@@ -1,4 +1,4 @@
-function [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,angle_threshold)
+function [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,hyper_paras)
 % extract rotation and translation
 R_W_C = reshape(S.est_rot(:,end),[3,3]);
 t_W_C = S.est_trans(:,end);
@@ -40,7 +40,7 @@ end
 angles = acos(sum(p_current_normalied_homo.*p_first_normalied_homo,1)./...
     (vecnorm(p_current_normalied_homo).*vecnorm(p_first_normalied_homo)));
 angles = angles.*180./pi; % rad to degree
-whehter_append = angles>angle_threshold;
+whehter_append = angles>hyper_paras.angle_threshold;
 
 % plot_add_candidate_debug(S.C,fliplr(matched_points_candidate),image,image,validity_candidate,inliersIndex,angles);
 % append landmarks for candidate keypoints whose angle is larger
@@ -79,7 +79,7 @@ for ii = 1:num_added
     
     % filter points behind and too far from the camera
     P_est_local_coord = T_W_C\P_est;
-    if P_est_local_coord(3) > 0 & P_est_local_coord(3) < 100 % to be tuned
+    if P_est_local_coord(3) > hyper_paras.min_depth && P_est_local_coord(3) < hyper_paras.max_depth 
         S.X = [S.X, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
         B.landmarks = [B.landmarks, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
         B.new_idx = B.new_idx + 1;

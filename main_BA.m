@@ -9,6 +9,8 @@ addpath('Initialization')
 ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 
 % hyperparameters
+hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
+
 hyper_paras.feature_extract = 'SURF'; %method to extract features
 hyper_paras.feature_extract_options = {'MetricThreshold', 10};
 % feature_extract = 'Harris';
@@ -21,6 +23,12 @@ hyper_paras.SFM_pose = 'Fundamental'; % method to estimate pose from 2D-2D, two 
 % camera)
 hyper_paras.min_depth = 0; 
 hyper_paras.max_depth = 100;
+
+% parameters for discarding redundant new candidate keypoints
+hyper_paras.r_discard_redundant = 5; % [pixel]
+
+% parameters for deciding whether or not to add a triangulated landmark
+hyper_paras.angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
 
 
 if ds == 0
@@ -116,7 +124,7 @@ else
     assert(false);
 end
 
-%% initialization with KLT
+%% Initialization
 cameraParams = cameraParameters('IntrinsicMatrix', K');
 
 [init_points,matched_points] = mathcing_initilization(img0,img_seqs,hyper_paras);
@@ -130,13 +138,7 @@ p_W_landmarks = double(pts3d);
 keypoints = double(matched_points_valid);
 T_init_WC = T_refinement(T_init_WC, keypoints', p_W_landmarks', K);
 
-%% Directly get bootstrap from exe7, for debugging continuous operation only
-debug = true;
-
-% Directly get bootstrap from exe7
-% K = load('data/data_exe7/K.txt');
-% S.P = load('data/data_exe7/keypoints.txt')'; %(row,col)
-% S.X = load('data/data_exe7/p_W_landmarks.txt')';
+%% Initialize state
 
 S.X = p_W_landmarks';
 S.P = double(fliplr(keypoints))';
@@ -172,20 +174,13 @@ B.new_idx = B.m + 1; %index when adding new keypoints
 
 switch ds % 0: KITTI, 1: Malaga, 2: parking
     case 0
-        database_image = imread([kitti_path '/05/image_0/' ...
-                sprintf('%06d.png', 2)]);
         gt_scale = ground_truth./(ground_truth(3,2)/S.est_trans(3,1)); % for kitti
     case 1
-        database_image = rgb2gray(imread([malaga_path ...
-            '/malaga-urban-dataset-extract-07_rectified_800x600_Images/' ...
-            left_images(fr_idx).name]));
         gt_scale = zeros(600,2);
     case 2
-        database_image = rgb2gray(imread([parking_path ...
-                sprintf('/images/img_%05d.png',bootstrap_frames(2))]));
         gt_scale = ground_truth./(ground_truth(bootstrap_frames(2)+1,1)/S.est_trans(1,1)); % for praking
 end
-
+database_image = img_seqs{end};
 plot_all(database_image,S,gt_scale,2,bootstrap_frames(2))
 %% Continuous operation
 
@@ -194,19 +189,11 @@ plot_all(database_image,S,gt_scale,2,bootstrap_frames(2))
 KLT_tracker_L = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
     'MaxIterations',50,'MaxBidirectionalError',3);
 initialize(KLT_tracker_L,fliplr(S.P'),database_image);
-% [features, valid_key_points] = detectkeypoints(database_image); 
-% initialize(KLT_tracker_c,valid_key_points.Location,database_image);
 prev_img = database_image;
 
 % for candidate keypoints tracking
 KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
     'MaxIterations',50,'MaxBidirectionalError',3);
-
-% parameters for discarding redundant new candidate keypoints
-r_discard_redundant = 5;
-
-% parameters for deciding whether or not to add a triangulated landmark
-angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -224,13 +211,10 @@ for i = range
         assert(false);
     end
     
-%     %%%% only for debug
-%     image = imread(['data/data_exe7/' sprintf('%06d.png',i)]);
     
-    %%%%%%%%%%%%%%%%%%%%%%%%%%%% assciate keypoints %%%%%%%%%%%%%%%%%%%%%%%
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%% associate keypoints %%%%%%%%%%%%%%%%%%%%%%%
     % detect keypoints
     [features, valid_key_candidates] = genKeypoints(img0,hyper_paras.feature_extract,hyper_paras.feature_extract_options); 
-    % figure(1); imshow(image); hold on;plot(valid_key_points); % plot
     
     % KLT tracking
     [matched_points,validity] = KLT_tracker_L(image);
@@ -243,9 +227,6 @@ for i = range
     
     T_W_C = inv(T_C_W);
     
-    % plotting
-%     plot_KLT_debug(S.P,fliplr(matched_points),prev_img,image,validity,inlier_mask);
-    
     % discard unmatched landmarks
     S.P = matched_points_valid((inlier_mask)>0,:)';
     S.X = S.X(:,validity);
@@ -257,12 +238,13 @@ for i = range
     R_W_C = T_W_C(1:3,1:3);
     S.est_rot = [S.est_rot, R_W_C(:)];
     
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%% Adding new keypoints and candidates %%%%%%%%%%%%%%%%%%%%%%%
     % track candidate keypoints
     if ~isempty(S.C)
-        [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,angle_threshold);
+        [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,hyper_paras);
     end
 %     [S,B] = VO_bundle_adjust(S,B,M_W_C,K);
-    S = update_candidate(S,valid_key_candidates,image,K,r_discard_redundant);
+    S = update_candidate(S,valid_key_candidates,image,K,hyper_paras);
     
     % update KLT_tracker (for landmarks)
     release(KLT_tracker_L);
