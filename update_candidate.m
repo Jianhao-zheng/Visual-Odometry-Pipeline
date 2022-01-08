@@ -1,10 +1,10 @@
 function S = update_candidate(S,valid_key_candidates,image,K,r_discard_redundant)
 % extract rotation and translation
 R_W_C = reshape(S.est_rot(:,end),[3,3]);
-T_W_C = S.est_trans(:,end);
+t_W_C = S.est_trans(:,end);
 
 R_C_W = R_W_C';
-t_C_W = -R_W_C'*T_W_C;
+t_C_W = -R_W_C'*t_W_C;
 
 % discard redundant new candidate keypoints (whose distance to any
 % existing keypoints is less than 'r_discard_redundant')
@@ -35,12 +35,12 @@ no_discard = logical(no_discard);
 valid_key_candidates = valid_key_candidates(no_discard); 
 S.C = [S.C, double(flipud(valid_key_candidates.Location'))];
 S.F = [S.F, double(flipud(valid_key_candidates.Location'))];
-unnormalized_camera_coord = [double(valid_key_candidates.Location');...
-    ones(1,size(valid_key_candidates.Location,1))]; % (u,v)
-normalized_camera_coord = K\unnormalized_camera_coord;
-normalized_camera_coord_world = R_W_C*normalized_camera_coord...
-    + repmat(T_W_C, [1 size(normalized_camera_coord,2)]);
-S.F_W = [S.F_W normalized_camera_coord_world-T_W_C];
-S.T = [S.T, repmat([R_C_W(:);t_C_W(:)],1,size(valid_key_candidates.Location,1))];
+% unnormalized_camera_coord = [double(valid_key_candidates.Location');...
+%     ones(1,size(valid_key_candidates.Location,1))]; % (u,v)
+% normalized_camera_coord = K\unnormalized_camera_coord;
+% normalized_camera_coord_world = R_W_C*normalized_camera_coord...
+%     + repmat(t_W_C, [1 size(normalized_camera_coord,2)]);
+% S.F_W = [S.F_W normalized_camera_coord_world-t_W_C];
+S.T = [S.T, repmat([R_W_C(:);t_W_C(:)],1,size(valid_key_candidates.Location,1))];
 
 end

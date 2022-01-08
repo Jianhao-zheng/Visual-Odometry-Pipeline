@@ -8,6 +8,9 @@ addpath('Initialization')
 
 ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 
+% hyperparameters
+feature_extract = 'SURF';
+
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
     kitti_path = 'data/kitti'; 
@@ -82,7 +85,7 @@ elseif ds == 1
         left_images(fr_idx).name]));
     end
 elseif ds == 2
-    bootstrap_frames = [0 4]; % naming from `img_00000.png`
+    bootstrap_frames = [0 2]; % naming from `img_00000.png`
     img_seq_len = bootstrap_frames(2) - bootstrap_frames(1);
 
     img0 = rgb2gray(imread([parking_path ...
@@ -104,12 +107,11 @@ end
 %% initialization with KLT
 cameraParams = cameraParameters('IntrinsicMatrix', K');
 KLT_tracker_init = vision.PointTracker(...
-    'BlockSize',[15 15],...
-    'NumPyramidLevels',2,...
-    'MaxIterations',50, ...
+    'NumPyramidLevels',5,...
     'MaxBidirectionalError',3);
 
-[features0, valid_key_candidates0] = detectkeypoints(img0);
+% [features0, valid_key_candidates0] = detectkeypoints(img0);
+[features0, valid_key_candidates0] = genKeypoints(img0,feature_extract);
 init_points_ = valid_key_candidates0.Location;
 initialize(KLT_tracker_init, init_points_, img0);
 
@@ -123,50 +125,34 @@ img1 = img_seqs{end};
 matched_points_valid = matched_points1_(validity_img1,:);
 
 init_points = init_points_(validity_img1,:);
-
+    
 % method1: FundamentalMatrix without known camera parameters
 [fRANSAC, inliers] = estimateFundamentalMatrix( ...
     init_points,matched_points_valid, ...
     'Method','RANSAC',...
     'NumTrials',2000, ...
-    'DistanceThreshold',5e-1);
+    'DistanceThreshold',1e-2);
 disp('Estimated inlier ratio from method2 is');
 disp(nnz(inliers)/numel(inliers));
 essMat = K'*fRANSAC*K;
 
-N=size(init_points,1);
-x1 = [init_points';ones(1,N)];
-x2 = [matched_points_valid';ones(1,N)];
-cost_algebraic = norm( sum(x2.*(fRANSAC*x1)) ) / sqrt(N);
-cost_dist_epi_line = distPoint2EpipolarLine(fRANSAC,x1,x2);
-fprintf('Algebraic error: %f\n', cost_algebraic);
-fprintf('Geometric error: %f px\n\n', cost_dist_epi_line);
 % method2: EssentialMatrix with known camera parameters
-% [essMat, inliers] = estimateEssentialMatrix(init_points,matched_points_valid,cameraParams);
+% [essMat, inliers] = estimateEssentialMatrix(init_points,matched_points_valid,cameraParams,'Confidence', 99.9);
 % disp('Estimated inlier ratio from method1 is');
 % disp(nnz(inliers)/numel(inliers));
-
-% visualize for detected feature debugging
-figure()
-set(gcf,'outerposition',get(0,'screensize'));
-subplot(2, 1,1); 
-showMatchedFeatures(img0,img1,init_points,matched_points_valid,'montage','PlotOptions',{'ro','go','y--'});
-subplot(2, 1,2);
-showMatchedFeatures(img0,img1,init_points(inliers,:),matched_points_valid(inliers,:),'montage','PlotOptions',{'ro','go','y--'});
 
 % choose inlier points
 init_points = init_points(inliers,:);
 matched_points_valid = matched_points_valid(inliers,:);
 
-
-% % visualize for detected feature debugging
-% plotMatchRes(...
-%     fliplr(init_points_)', ...
-%     fliplr(matched_points1_)',...
-%     img0,...
-%     img1,...
-%     validity_img1,...
-%     inliers);
+% visualize for detected feature debugging
+plotMatchRes(...
+    fliplr(init_points_)', ...
+    fliplr(matched_points1_)',...
+    img0,...
+    img1,...
+    validity_img1,...
+    inliers);
 
 % estimate relative pose relative to frame previous frame
 [ori, loc] = relativeCameraPose(...
@@ -175,6 +161,9 @@ matched_points_valid = matched_points_valid(inliers,:);
     init_points,...
     matched_points_valid);
 [rot_mat, trans_vec] = cameraPoseToExtrinsics(ori, loc);
+% disp(ground_truth(bootstrap_frames(2),:))
+% disp(rot_mat)
+% disp(trans_vec)
 
 % compute projection matrix
 proj_mat0 = compProjMat(eye(3), [0 0 0]', cameraParams.IntrinsicMatrix');
@@ -189,76 +178,28 @@ pts3d = linearTriangulation(...
     matched_points_valid_homo, ...
     proj_mat0, ...
     proj_mat1);
-
-% reproj1 = proj_mat0*pts3d;
-% reproj1 = reproj1./repmat(reproj1(3,:),[3,1]);
-% reproj1_err = double(vecnorm(reproj1-init_points_homo));
-% reproj2 = proj_mat1*pts3d;
-% reproj2 = reproj2./repmat(reproj2(3,:),[3,1]);
-% reproj2_err = double(vecnorm(reproj2-matched_points_valid_homo));
-% disp('mean of reprojection error is:')
-% disp([mean(reproj1_err),mean(reproj2_err)])
-% 
-% valid_idx= reproj1_err<15 & reproj2_err<15;
-% pts3d = pts3d(:,valid_idx);
-% init_points_homo = init_points_homo(:,valid_idx);
-% matched_points_valid_homo = matched_points_valid_homo(:,valid_idx);
-% matched_points_valid = matched_points_valid(valid_idx,:);
-
-reproj1 = proj_mat0*pts3d;
-reproj1 = reproj1./repmat(reproj1(3,:),[3,1]);
-reproj1_err = double(vecnorm(reproj1-init_points_homo));
-reproj2 = proj_mat1*pts3d;
-reproj2 = reproj2./repmat(reproj2(3,:),[3,1]);
-reproj2_err = double(vecnorm(reproj2-matched_points_valid_homo));
-disp('mean of reprojection error is:')
-disp([mean(reproj1_err),mean(reproj2_err)])
-
 % back from homogeneous coordinate
 pts3d = pts3d(1:3,:)';
 
 % filter points according to height (optional)
 % consider points between [min_z, max_z]
-consider_z = false; % true, false
+consider_z = true; % true, false
 if consider_z
     disp(max(pts3d(3,:)))
     disp(min(pts3d(3,:))) % 可能存在 -7.7913 的点
     min_z = 0.0;
-    max_z = 1000.0;
+    max_z = 100.0;
     valid_idx = (pts3d(:,3) >= min_z) & (pts3d(:,3) <= max_z);
     pts3d = pts3d(valid_idx,:);
     init_points = init_points(valid_idx,:);
-    init_points_homo = double(init_points_homo(:,valid_idx));
-    matched_points_valid_homo = double(matched_points_valid_homo(:,valid_idx));
     matched_points_valid = matched_points_valid(valid_idx,:);
 end
 
 % initial results for continuous operation
 p_W_landmarks = double(pts3d);
 keypoints = double(matched_points_valid);
-
-n = 2;
-m = size(p_W_landmarks,1);
-temp = flipud(init_points');
-O_1 = [m;double((temp(:)));(1:m)'];
-temp = flipud(matched_points_valid');
-O_2 = [m;double((temp(:)));(1:m)'];
-obs = [1;m;O_2];
-temp = p_W_landmarks';
-state = [HomogMatrix2twist([ori, loc';zeros(1,3) 1]);temp(:)];
-optimized_hidden_state = runBA(state, obs, K);
-t = twist2HomogMatrix(optimized_hidden_state(1:6));
-
-pts3d = [reshape(optimized_hidden_state(7:end),[3,m]);ones(1,m)];
-reproj1 = proj_mat0*pts3d;
-reproj1 = reproj1./repmat(reproj1(3,:),[3,1]);
-reproj1_err = double(vecnorm(reproj1-init_points_homo));
-reproj2 = proj_mat1*pts3d;
-reproj2 = reproj2./repmat(reproj2(3,:),[3,1]);
-reproj2_err = double(vecnorm(reproj2-matched_points_valid_homo));
-disp('mean of reprojection error after BA is:')
-disp([mean(reproj1_err),mean(reproj2_err)])
-
+T_init_WC = [ori, loc'];
+T_init_WC = pose_refinement(T_init_WC, keypoints, p_W_landmarks, K);
 
 % debug trangulated points
 debug_trangulation = false;
@@ -278,7 +219,6 @@ if debug_trangulation
         'FontWeight','bold');
 end
 
-
 %% Directly get bootstrap from exe7, for debugging continuous operation only
 debug = true;
 
@@ -290,20 +230,14 @@ debug = true;
 S.X = p_W_landmarks';
 S.P = double(fliplr(keypoints))';
 
-% S.X = pts3d(1:3,:);
-% S.P = double(fliplr(keypoints))';
-
 S.X = [S.X; 1:size(S.X,2)]; % add a row to indicate the landmark index (for BA)
 S.C = [];%(row,col)
 S.F = [];%(row,col)
-S.F_W = []; % vectors pointing from optical center to normalized image coordinates (expressed in world coordinate)
+% S.F_W = []; % vectors pointing from optical center to normalized image coordinates (expressed in world coordinate)
 S.T = [];
-S.est_trans = loc(:); % estimated camera translation (3 x N)
-S.est_rot = ori(:);% estimated camera rotation (9 x N)
-
-% S.est_trans = t(1:3,4); % estimated camera translation (3 x N)
-% temp = t(1:3,1:3);
-% S.est_rot = temp(:);% estimated camera rotation (9 x N)
+S.est_trans = T_init_WC(1:3,4); % estimated camera translation (3 x N)
+temp = T_init_WC(1:3,1:3); 
+S.est_rot = temp(:);% estimated camera rotation (9 x N)
 
 S.num_X = size(S.X,2);
 S.num_C = size(S.C,2);
@@ -313,11 +247,11 @@ S.num_new = 0;
 B.window_size = 5; %size of window to do bundle adjustment
 B.n = 1;
 B.m = size(S.X,2);
-B.tau = optimized_hidden_state(1:6);
+B.tau = HomogMatrix2twist([ori, loc';zeros(1,3) 1]);
 B.landmarks = S.X;
 B.discard_idx = cell(1,B.window_size); % buffer recording which landmarks to discard
 B.observation = cell(1,B.window_size);
-B.observation{1} = O_2;
+% B.observation{1} = O_2;
 B.new_idx = B.m + 1; %index when adding new keypoints
 
 
@@ -361,7 +295,7 @@ KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
 r_discard_redundant = 5;
 
 % parameters for deciding whether or not to add a triangulated landmark
-angle_threshold = 3*pi/180; %start with pi*10/180 dervie by Rule of the thumb:
+angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -384,24 +318,21 @@ for i = range
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% assciate keypoints %%%%%%%%%%%%%%%%%%%%%%%
     % detect keypoints
-    [features, valid_key_candidates] = detectkeypoints(image); 
+    [features, valid_key_candidates] = genKeypoints(img0,feature_extract); 
     % figure(1); imshow(image); hold on;plot(valid_key_points); % plot
     
     % KLT tracking
     [matched_points,validity] = KLT_tracker_L(image);
-    matched_points_valid = fliplr(matched_points(validity,:));
+    matched_points_valid = fliplr(matched_points(validity,:)); % (u,v) to (row,col)
     
     % perform RANSAC to find best Pose and inliers
     [R_C_W, t_C_W, inlier_mask, max_num_inliers_history, num_iteration_history] = ...
         ransacLocalization(matched_points_valid', S.X(1:3,validity), K);
-    M_C_W = [R_C_W, t_C_W];
+    T_C_W = [R_C_W, t_C_W];
     
     R_W_C = R_C_W';
-    T_W_C = -R_C_W'*t_C_W;
-    M_W_C = [R_W_C, T_W_C];
-    
-    S.est_trans = [S.est_trans, T_W_C];
-    S.est_rot = [S.est_rot, R_W_C(:)];
+    t_W_C = -R_C_W'*t_C_W;
+    T_W_C = [R_W_C, t_W_C];
     
     % plotting
 %     plot_KLT_debug(S.P,fliplr(matched_points),prev_img,image,validity,inlier_mask);
@@ -411,11 +342,17 @@ for i = range
     S.X = S.X(:,validity);
     S.X = S.X(:,(inlier_mask)>0);
     
+    T_W_C = pose_refinement(T_W_C, fliplr(S.P'), S.X(1:3,:)', K);
+    
+    S.est_trans = [S.est_trans, T_W_C(:,4)];
+    R_W_C = T_W_C(:,1:3);
+    S.est_rot = [S.est_rot, R_W_C(:)];
+    
     % track candidate keypoints
     if ~isempty(S.C)
         [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,angle_threshold);
     end
-    [S,B] = VO_bundle_adjust(S,B,M_W_C,K);
+%     [S,B] = VO_bundle_adjust(S,B,M_W_C,K);
     S = update_candidate(S,valid_key_candidates,image,K,r_discard_redundant);
     
     % update KLT_tracker (for landmarks)

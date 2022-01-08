@@ -43,7 +43,7 @@ end
 % Also here, using an external error function for clean code.
 error_terms = @(hidden_state) baError(hidden_state, observations, K);
 options = optimoptions(@lsqnonlin, 'Display', 'None', ...
-    'MaxIter', 20);
+    'MaxIter', 5);
 if with_pattern
     options.JacobPattern = pattern;
     options.UseParallel = false;
