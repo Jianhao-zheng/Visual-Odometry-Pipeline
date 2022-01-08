@@ -1,0 +1,39 @@
+path: data.bag
+version: 2.0
+duration: 52.370172
+start: 1616675278.191300
+end: 1616675330.561472
+size: 725614357
+messages: 108204
+indexed: True
+compression: none
+types:
+  - type: darknet_ros_msgs/BoundingBoxes
+    md5: 004f6f4f48a741582d10735997905846
+  - type: nav_msgs/Odometry
+    md5: cd5e73d190d741a2f92e81eda573aca7
+  - type: sensor_msgs/CameraInfo
+    md5: c9a58c1b0b154e0e6da7578cb991d214
+  - type: sensor_msgs/Image
+    md5: 060021388200f6f0f447d0fcd9c64743
+  - type: tf2_msgs/TFMessage
+    md5: 94810edda583a504dfda3829e70d7eec
+topics:
+  - topic: /camera_left/color/camera_info
+    type: sensor_msgs/CameraInfo
+    messages: 760
+  - topic: /camera_left/color/image_raw
+    type: sensor_msgs/Image
+    messages: 760
+  - topic: /darknet_ros/bounding_boxes
+    type: darknet_ros_msgs/BoundingBoxes
+    messages: 463
+  - topic: /t265/odom/sample
+    type: nav_msgs/Odometry
+    messages: 10459
+  - topic: /tf
+    type: tf2_msgs/TFMessage
+    messages: 95760
+  - topic: /tf_static
+    type: tf2_msgs/TFMessage
+    messages: 2
