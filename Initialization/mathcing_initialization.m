@@ -1,4 +1,4 @@
-function [init_points,matched_points] = mathcing_initilization(img0,img_seqs,hyper_paras)
+function [init_points,matched_points] = mathcing_initialization(img0,img_seqs,hyper_paras)
 img_seq_len = length(img_seqs);
 
 switch hyper_paras.matching

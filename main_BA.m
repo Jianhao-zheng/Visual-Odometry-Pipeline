@@ -8,7 +8,7 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 0; % 0: KITTI, 1: Malaga, 2: parking
+ds = 1; % 0: KITTI, 1: Malaga, 2: parking
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
@@ -46,9 +46,10 @@ if ds == 0
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 80};
-    hyper_paras.min_depth = 10; 
+    hyper_paras.feature_extract_options = {'MetricThreshold', 200};
+    hyper_paras.min_depth = 2; 
     hyper_paras.r_discard_redundant = 7;
+    hyper_paras.max_depth = 200;
     hyper_paras.angle_threshold = 0.8;
 elseif ds == 1
     % Path containing the many files of Malaga 7.
@@ -61,6 +62,13 @@ elseif ds == 1
     K = [621.18428 0 404.0076
         0 621.18428 309.05989
         0 0 1];
+    
+    % tuned hyperparameters
+    hyper_paras.feature_extract_options = {'MetricThreshold', 200};
+    hyper_paras.min_depth = 2; 
+    hyper_paras.r_discard_redundant = 7;
+    hyper_paras.max_depth = 200;
+    hyper_paras.angle_threshold = 0.8;
 elseif ds == 2
     % Path containing images, depths and all...
     parking_path = 'data/parking';
@@ -136,7 +144,7 @@ end
 %% Initialization
 cameraParams = cameraParameters('IntrinsicMatrix', K');
 
-[init_points,matched_points] = mathcing_initilization(img0,img_seqs,hyper_paras);
+[init_points,matched_points] = mathcing_initialization(img0,img_seqs,hyper_paras);
 
 [T_init_WC,init_points_valid,matched_points_valid] = pose_estimation_init(init_points,matched_points,K,hyper_paras);
 
@@ -240,20 +248,20 @@ for i = range
     S.P = matched_points_valid((inlier_mask)>0,:)';
     S.X = S.X(:,validity);
     S.X = S.X(:,(inlier_mask)>0);
-    
+
     T_W_C = T_refinement(T_W_C, flipud(S.P), S.X(1:3,:), K);
-    
     S.est_trans = [S.est_trans, T_W_C(1:3,4)];
     R_W_C = T_W_C(1:3,1:3);
     S.est_rot = [S.est_rot, R_W_C(:)];
-    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% Adding new keypoints and candidates %%%%%%%%%%%%%%%%%%%%%%%
     % track candidate keypoints
     if ~isempty(S.C)
         [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,hyper_paras);
     end
 %     [S,B] = VO_bundle_adjust(S,B,M_W_C,K);
+
     S = update_candidate(S,valid_key_candidates,image,K,hyper_paras);
+
     
     % update KLT_tracker (for landmarks)
     release(KLT_tracker_L);
