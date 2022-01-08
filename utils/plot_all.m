@@ -3,13 +3,13 @@ figure(fig_idx)
 set(gcf,'outerposition',get(0,'screensize'));
 subplot(2, 4, [1 2]); 
 imshow(image); %, 'InitialMagnification', 800
-hold on;
+hold on
 if ~isempty(S.C)
     scatter(S.C(2,:),S.C(1,:),'gx');
-    hold on; 
+    hold on
 end
 scatter(S.P(2,:),S.P(1,:),'ro');
-hold off; 
+hold off
 if ~isempty(S.C)
     legend('candidate keypoints','existing keypoints','FontSize',12);
 end

@@ -1,5 +1,7 @@
 %% Setup
-close all;clear;clc;
+% close all;
+clear;
+clc;
 
 % add path of functions
 addpath(genpath('utils'))
@@ -8,7 +10,7 @@ addpath('Initialization')
 
 ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
-% hyperparameters
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
 
 hyper_paras.feature_extract = 'SURF'; %method to extract features
@@ -30,6 +32,7 @@ hyper_paras.r_discard_redundant = 5; % [pixel]
 % parameters for deciding whether or not to add a triangulated landmark
 hyper_paras.angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
@@ -41,6 +44,10 @@ if ds == 0
     K = [7.188560000000e+02 0 6.071928000000e+02
         0 7.188560000000e+02 1.852157000000e+02
         0 0 1];
+    
+    % tuned hyperparameters
+    hyper_paras.feature_extract_options = {'MetricThreshold', 100};
+    hyper_paras.angle_threshold = 1;
 elseif ds == 1
     % Path containing the many files of Malaga 7.
     malaga_path = 'data/malaga';
