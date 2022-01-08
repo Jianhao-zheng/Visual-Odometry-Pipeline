@@ -46,8 +46,10 @@ if ds == 0
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 100};
-    hyper_paras.angle_threshold = 1;
+    hyper_paras.feature_extract_options = {'MetricThreshold', 80};
+    hyper_paras.min_depth = 10; 
+    hyper_paras.r_discard_redundant = 7;
+    hyper_paras.angle_threshold = 0.8;
 elseif ds == 1
     % Path containing the many files of Malaga 7.
     malaga_path = 'data/malaga';
@@ -221,7 +223,7 @@ for i = range
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% associate keypoints %%%%%%%%%%%%%%%%%%%%%%%
     % detect keypoints
-    [features, valid_key_candidates] = genKeypoints(img0,hyper_paras.feature_extract,hyper_paras.feature_extract_options); 
+    [features, valid_key_candidates] = genKeypoints(image,hyper_paras.feature_extract,hyper_paras.feature_extract_options); 
     
     % KLT tracking
     [matched_points,validity] = KLT_tracker_L(image);
