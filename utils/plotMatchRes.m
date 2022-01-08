@@ -1,4 +1,16 @@
-function plotMatchRes(keypoint_database,matched_points,prev_image,curr_image,validity,inlier_mask)
+function plotMatchRes(keypoint_database, matched_points, prev_image, curr_image, validity,inlier_mask)
+
+% validity, inlier_mask
+if nargin <= 4
+    use_validity = false;
+    use_inlier = false;
+elseif nargin == 5
+    use_validity = true;
+    use_inlier = false;
+else
+    use_validity = true;
+    use_inlier = true;
+end
 
 fh = figure;
 % https://ch.mathworks.com/matlabcentral/answers/102219-how-do-i-make-a-figure-full-screen-programmatically-in-matlab
@@ -13,7 +25,7 @@ fh.Position = [10 10 1200 800];
 
 
 %subplot(2, 2, 1);
-axes(ha(1)); 
+axes(ha(1));
 imshow(prev_image)
 hold on
 scatter(keypoint_database(2,:),keypoint_database(1,:),'r');
@@ -22,33 +34,60 @@ axis('image');
 axis('tight');
 
 % subplot(2,2,2);
-axes(ha(2)); 
+axes(ha(2));
 imshow(curr_image)
 hold on
-scatter(matched_points(2,validity), matched_points(1,validity),'r');
+if use_validity
+    matched_points2_ = matched_points(2,validity);
+    matched_points1_ = matched_points(1,validity);
+else
+    matched_points2_ = matched_points(2,:);
+    matched_points1_ = matched_points(1,:);
+end
+scatter(matched_points2_, matched_points1_,'r');
 title('Matched keypoints in current image');
 axis('image');
 axis('tight');
 
 % subplot(2, 2, 3);
-axes(ha(3)); 
+axes(ha(3));
 imshow(prev_image)
 hold on
-scatter(keypoint_database(2,validity),keypoint_database(1,validity),'r');
+if use_validity
+    keypoint_database2_ = keypoint_database(2,validity);
+    keypoint_database1_ = keypoint_database(1,validity);
+else
+    keypoint_database2_ = keypoint_database(2,:);
+    keypoint_database1_ = keypoint_database(1,:);
+end
+scatter(keypoint_database2_,keypoint_database1_,'r');
 title('Matched keypoints in previous image');
 axis('image');
 axis('tight');
 
 % subplot(2, 2, 4);
-axes(ha(4)); 
+axes(ha(4));
 imshow(curr_image)
 hold on
-corresponding_matches = 1:size(matched_points,2);
-matched_query_keypoints = matched_points(:,validity);
-keypoints = keypoint_database(:,validity);
-plotMatches(corresponding_matches(inlier_mask>0), ...
-    matched_query_keypoints(:, inlier_mask>0), ...
-    keypoints);
+if use_validity
+    matched_query_keypoints = matched_points(:,validity);
+    corresponding_matches = 1:size(matched_query_keypoints,2);
+    keypoints = keypoint_database(:,validity);
+    if use_inlier
+        plotMatches(corresponding_matches(inlier_mask>0), ...
+            matched_query_keypoints(:, inlier_mask>0), ...
+            keypoints);
+    else
+        plotMatches(corresponding_matches, ...
+            matched_query_keypoints, ...
+            keypoints); 
+    end
+else
+    plotMatches(corresponding_matches, ...
+        matched_points, ...
+        keypoint_database);
+end
+
 title('Matched keypoints after RANSAC in current image');
 axis('image');
 axis('tight');

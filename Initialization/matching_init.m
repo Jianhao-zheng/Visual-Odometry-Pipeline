@@ -32,9 +32,14 @@ switch hyper_paras.init_matching_method
         matched_points = valid1(indexPairs(:,2)).Location;
 end
 
-if hyper_paras.show_match_res
-    figure; showMatchedFeatures(img0,img1,init_points,matched_points);
-    legend('init\_points','matched\_points');
+if hyper_paras.show_matching_res
+    plotMatchRes(...
+        fliplr(init_points)', ...
+        fliplr(matched_points)',...
+        img0,...
+        img1);
+    % figure; showMatchedFeatures(img0,img1,init_points,matched_points);
+    % legend('init\_points','matched\_points');
 end
 
 end
