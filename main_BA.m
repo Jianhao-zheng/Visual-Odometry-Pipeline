@@ -9,7 +9,19 @@ addpath('Initialization')
 ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 
 % hyperparameters
-feature_extract = 'SURF';
+hyper_paras.feature_extract = 'SURF'; %method to extract features
+hyper_paras.feature_extract_options = {'MetricThreshold', 10};
+% feature_extract = 'Harris';
+% feature_extract_options = {'MinQuality',1e-6};
+
+hyper_paras.matching = 'KLT'; % method to matching keypoints, two options: ['KLT', 'Des_match']
+hyper_paras.SFM_pose = 'Fundamental'; % method to estimate pose from 2D-2D, two options: ['Fundamental', 'Essential']
+
+% range of vaild landmarks (filter out points behind and too far from the
+% camera)
+hyper_paras.min_depth = 0; 
+hyper_paras.max_depth = 100;
+
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
@@ -106,118 +118,17 @@ end
 
 %% initialization with KLT
 cameraParams = cameraParameters('IntrinsicMatrix', K');
-KLT_tracker_init = vision.PointTracker(...
-    'NumPyramidLevels',5,...
-    'MaxBidirectionalError',3);
 
-% [features0, valid_key_candidates0] = detectkeypoints(img0);
-[features0, valid_key_candidates0] = genKeypoints(img0,feature_extract);
-init_points_ = valid_key_candidates0.Location;
-initialize(KLT_tracker_init, init_points_, img0);
+[init_points,matched_points] = mathcing_initilization(img0,img_seqs,hyper_paras);
 
-for i = 1:img_seq_len-1
-    img_intermediate = img_seqs{i};
-    [~,~] = KLT_tracker_init(img_intermediate);
-end
+[T_init_WC,init_points_valid,matched_points_valid] = pose_estimation_init(init_points,matched_points,K,hyper_paras);
 
-img1 = img_seqs{end};
-[matched_points1_, validity_img1] = KLT_tracker_init(img1);
-matched_points_valid = matched_points1_(validity_img1,:);
-
-init_points = init_points_(validity_img1,:);
-    
-% method1: FundamentalMatrix without known camera parameters
-[fRANSAC, inliers] = estimateFundamentalMatrix( ...
-    init_points,matched_points_valid, ...
-    'Method','RANSAC',...
-    'NumTrials',2000, ...
-    'DistanceThreshold',1e-2);
-disp('Estimated inlier ratio from method2 is');
-disp(nnz(inliers)/numel(inliers));
-essMat = K'*fRANSAC*K;
-
-% method2: EssentialMatrix with known camera parameters
-% [essMat, inliers] = estimateEssentialMatrix(init_points,matched_points_valid,cameraParams,'Confidence', 99.9);
-% disp('Estimated inlier ratio from method1 is');
-% disp(nnz(inliers)/numel(inliers));
-
-% choose inlier points
-init_points = init_points(inliers,:);
-matched_points_valid = matched_points_valid(inliers,:);
-
-% visualize for detected feature debugging
-plotMatchRes(...
-    fliplr(init_points_)', ...
-    fliplr(matched_points1_)',...
-    img0,...
-    img1,...
-    validity_img1,...
-    inliers);
-
-% estimate relative pose relative to frame previous frame
-[ori, loc] = relativeCameraPose(...
-    essMat,...
-    cameraParams,...
-    init_points,...
-    matched_points_valid);
-[rot_mat, trans_vec] = cameraPoseToExtrinsics(ori, loc);
-% disp(ground_truth(bootstrap_frames(2),:))
-% disp(rot_mat)
-% disp(trans_vec)
-
-% compute projection matrix
-proj_mat0 = compProjMat(eye(3), [0 0 0]', cameraParams.IntrinsicMatrix');
-proj_mat1 = compProjMat(rot_mat, trans_vec', cameraParams.IntrinsicMatrix');
-
-% convert to homogeneous pixel coordinate
-init_points_homo = [init_points'; ones(1,length(init_points))];
-matched_points_valid_homo = [matched_points_valid'; ones(1,length(matched_points_valid))];
-% pts3d (samples x 4)
-pts3d = linearTriangulation(...
-    init_points_homo, ...
-    matched_points_valid_homo, ...
-    proj_mat0, ...
-    proj_mat1);
-% back from homogeneous coordinate
-pts3d = pts3d(1:3,:)';
-
-% filter points according to height (optional)
-% consider points between [min_z, max_z]
-consider_z = true; % true, false
-if consider_z
-    disp(max(pts3d(3,:)))
-    disp(min(pts3d(3,:))) % 可能存在 -7.7913 的点
-    min_z = 0.0;
-    max_z = 100.0;
-    valid_idx = (pts3d(:,3) >= min_z) & (pts3d(:,3) <= max_z);
-    pts3d = pts3d(valid_idx,:);
-    init_points = init_points(valid_idx,:);
-    matched_points_valid = matched_points_valid(valid_idx,:);
-end
+[pts3d,matched_points_valid] = triangulation_init(init_points_valid,matched_points_valid,T_init_WC,K,hyper_paras);
 
 % initial results for continuous operation
 p_W_landmarks = double(pts3d);
 keypoints = double(matched_points_valid);
-T_init_WC = [ori, loc'];
-T_init_WC = pose_refinement(T_init_WC, keypoints, p_W_landmarks, K);
-
-% debug trangulated points
-debug_trangulation = false;
-if debug_trangulation
-    figure(111)
-    plot3(p_W_landmarks(:,1), p_W_landmarks(:,2), p_W_landmarks(:,3), 'o');
-    % display camera pose
-    plotCoordinateFrame(eye(3), [0 0 0]', 5);
-    text(-0.1,-0.1,-0.1,'Cam 1', ...
-        'fontsize',10, ...
-        'color','k', ...
-        'FontWeight','bold');
-    plotCoordinateFrame(ori', trans_vec', 5);
-    text(trans_vec(1)-0.1, trans_vec(2)-0.1, trans_vec(3)-0.1,'Cam 2', ...
-        'fontsize',10, ...
-        'color','k', ...
-        'FontWeight','bold');
-end
+T_init_WC = T_refinement(T_init_WC, keypoints', p_W_landmarks', K);
 
 %% Directly get bootstrap from exe7, for debugging continuous operation only
 debug = true;
@@ -247,7 +158,7 @@ S.num_new = 0;
 B.window_size = 5; %size of window to do bundle adjustment
 B.n = 1;
 B.m = size(S.X,2);
-B.tau = HomogMatrix2twist([ori, loc';zeros(1,3) 1]);
+B.tau = HomogMatrix2twist(T_init_WC);
 B.landmarks = S.X;
 B.discard_idx = cell(1,B.window_size); % buffer recording which landmarks to discard
 B.observation = cell(1,B.window_size);
@@ -318,7 +229,7 @@ for i = range
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%% assciate keypoints %%%%%%%%%%%%%%%%%%%%%%%
     % detect keypoints
-    [features, valid_key_candidates] = genKeypoints(img0,feature_extract); 
+    [features, valid_key_candidates] = genKeypoints(img0,hyper_paras.feature_extract,hyper_paras.feature_extract_options); 
     % figure(1); imshow(image); hold on;plot(valid_key_points); % plot
     
     % KLT tracking
@@ -328,11 +239,9 @@ for i = range
     % perform RANSAC to find best Pose and inliers
     [R_C_W, t_C_W, inlier_mask, max_num_inliers_history, num_iteration_history] = ...
         ransacLocalization(matched_points_valid', S.X(1:3,validity), K);
-    T_C_W = [R_C_W, t_C_W];
+    T_C_W = [R_C_W, t_C_W; zeros(1,3), 1];
     
-    R_W_C = R_C_W';
-    t_W_C = -R_C_W'*t_C_W;
-    T_W_C = [R_W_C, t_W_C];
+    T_W_C = inv(T_C_W);
     
     % plotting
 %     plot_KLT_debug(S.P,fliplr(matched_points),prev_img,image,validity,inlier_mask);
@@ -342,10 +251,10 @@ for i = range
     S.X = S.X(:,validity);
     S.X = S.X(:,(inlier_mask)>0);
     
-    T_W_C = pose_refinement(T_W_C, fliplr(S.P'), S.X(1:3,:)', K);
+    T_W_C = T_refinement(T_W_C, flipud(S.P), S.X(1:3,:), K);
     
-    S.est_trans = [S.est_trans, T_W_C(:,4)];
-    R_W_C = T_W_C(:,1:3);
+    S.est_trans = [S.est_trans, T_W_C(1:3,4)];
+    R_W_C = T_W_C(1:3,1:3);
     S.est_rot = [S.est_rot, R_W_C(:)];
     
     % track candidate keypoints
