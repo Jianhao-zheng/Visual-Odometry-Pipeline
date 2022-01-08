@@ -8,7 +8,7 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 1; % 0: KITTI, 1: Malaga, 2: parking
+ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
@@ -46,11 +46,11 @@ if ds == 0
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 200};
-    hyper_paras.min_depth = 2; 
-    hyper_paras.r_discard_redundant = 7;
-    hyper_paras.max_depth = 200;
-    hyper_paras.angle_threshold = 0.8;
+    hyper_paras.feature_extract_options = {'MetricThreshold', 100};
+    hyper_paras.min_depth = 1; 
+    hyper_paras.r_discard_redundant = 5;
+    hyper_paras.max_depth = 100;
+    hyper_paras.angle_threshold = 1;
 elseif ds == 1
     % Path containing the many files of Malaga 7.
     malaga_path = 'data/malaga';
@@ -64,10 +64,10 @@ elseif ds == 1
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 500};
+    hyper_paras.feature_extract_options = {'MetricThreshold', 400};
     hyper_paras.min_depth = 2; 
     hyper_paras.r_discard_redundant = 7;
-    hyper_paras.max_depth = 200;
+    hyper_paras.max_depth = 50;
     hyper_paras.angle_threshold = 0.8;
 elseif ds == 2
     % Path containing images, depths and all...
@@ -279,7 +279,7 @@ for i = range
     plot_all(image,S,gt_scale,2,i)
 
     % Makes sure that plots refresh.    
-    pause(0.1);
+    pause(0.01);
     
     prev_img = image;
 end

@@ -5,10 +5,10 @@ subplot(2, 4, [1 2]);
 imshow(image); %, 'InitialMagnification', 800
 hold on
 if ~isempty(S.C)
-    scatter(S.C(2,:),S.C(1,:),'gx');
+    scatter(S.C(2,:),S.C(1,:),20,'gx');
     hold on
 end
-scatter(S.P(2,:),S.P(1,:),'ro');
+scatter(S.P(2,:),S.P(1,:),20,'ro');
 hold off
 if ~isempty(S.C)
     legend('candidate keypoints','existing keypoints','FontSize',12);
@@ -26,10 +26,10 @@ legend('# of keypoints','# of candidates','# of new key','FontSize',8);
 title('Current frame: No.'+string(i));
 
 subplot(2, 4, 6); 
-p1 = plot(gt(1:i+1,1),gt(1:i+1,2),'b');
+p1 = plot(gt(1:i+1,1),gt(1:i+1,2),'b','MarkerSize',3);
 p1.Marker = '*';
 hold on; 
-p2 = plot(S.est_trans(1,:),S.est_trans(3,:),'r');
+p2 = plot(S.est_trans(1,:),S.est_trans(3,:),'r','MarkerSize',3);
 p2.Marker = '*';
 hold off;
 legend('ground truth','estimated','FontSize',10);
@@ -46,7 +46,9 @@ if size(S.est_trans,2)< 20
 %     axis([-30 30 -2 80])
     hold off
 else
-    scatter(S.est_trans(1,end-19:end),S.est_trans(3,end-19:end),50,'r.');
+%     scatter(S.est_trans(1,end-19:end),S.est_trans(3,end-19:end),50,'r.');
+    p2 = plot(S.est_trans(1,end-19:end),S.est_trans(3,end-19:end),'r','MarkerSize',10);
+    p2.Marker = '.';
 %     axis([min(S.est_trans(1,end-19:end))-30 max(S.est_trans(1,end-19:end))+30 -2 80])
     hold off
 
