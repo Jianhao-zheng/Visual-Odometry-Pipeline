@@ -31,7 +31,7 @@ p1.Marker = '*';
 hold on; 
 p2 = plot(S.est_trans(1,:),S.est_trans(3,:),'r');
 p2.Marker = '*';
-hold off; 
+hold off;
 legend('ground truth','estimated','FontSize',10);
 title('Full trajectory');
 % axis([min([S.est_trans(1,:),gt(1:i+1,1)']) - 0.25*abs(min([S.est_trans(1,:),gt(1:i+1,1)']))...
@@ -44,10 +44,12 @@ hold on;
 if size(S.est_trans,2)< 20
     scatter(S.est_trans(1,:),S.est_trans(3,:),50,'r.');
 %     axis([-30 30 -2 80])
+    hold off
 else
     scatter(S.est_trans(1,end-19:end),S.est_trans(3,end-19:end),50,'r.');
 %     axis([min(S.est_trans(1,end-19:end))-30 max(S.est_trans(1,end-19:end))+30 -2 80])
-hold off; 
+    hold off
+
 legend('landmarks','trajectory','FontSize',16);
 title('Trajectory of last 20 frame');
 

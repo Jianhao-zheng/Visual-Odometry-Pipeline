@@ -6,7 +6,7 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 2; % 0: KITTI, 1: Malaga, 2: parking
+ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 % hyperparameters
 hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
