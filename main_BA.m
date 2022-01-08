@@ -64,7 +64,7 @@ elseif ds == 1
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 200};
+    hyper_paras.feature_extract_options = {'MetricThreshold', 500};
     hyper_paras.min_depth = 2; 
     hyper_paras.r_discard_redundant = 7;
     hyper_paras.max_depth = 200;
