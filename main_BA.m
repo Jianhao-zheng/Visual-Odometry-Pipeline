@@ -42,7 +42,8 @@ if ds == 0
     assert(exist('kitti_path', 'var') ~= 0);
     ground_truth = load([kitti_path '/poses/05.txt']);
     ground_truth = ground_truth(:, [end-8 end]);
-    last_frame = 4540;
+%     last_frame = 4540;
+    last_frame = 540;
     K = [7.188560000000e+02 0 6.071928000000e+02
         0 7.188560000000e+02 1.852157000000e+02
         0 0 1];
@@ -52,7 +53,7 @@ if ds == 0
         hyper_paras.feature_extract_options = {'MetricThreshold', 1000}; %less keypoint to speed up
 %         hyper_paras.feature_extract_options = {'MinQuality',1e-6}; %less keypoint to speed up
     else
-        hyper_paras.feature_extract_options = {'MetricThreshold', 100};
+        hyper_paras.feature_extract_options = {'MetricThreshold', 200};
 %         hyper_paras.feature_extract_options = {'MinQuality',1e-4};
     end
     hyper_paras.min_depth = 1; 
@@ -304,3 +305,5 @@ for i = range
     
     prev_img = image;
 end
+
+errs = quantitative_eval(ground_truth,S,bootstrap_frames);
