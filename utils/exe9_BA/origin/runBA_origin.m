@@ -1,4 +1,3 @@
-% modified from original `runBA.m`
 function hidden_state = runBA(hidden_state, observations, K)
 % Update the hidden state, encoded as explained in the problem statement,
 % with 20 bundle adjustment iterations.
@@ -14,7 +13,7 @@ if with_pattern
     % position (3 entries), so 9 nonzero entries per error term:
     pattern = spalloc(num_error_terms, numel(hidden_state), ...
         num_error_terms * 9);
-
+    
     % Fill pattern for each frame individually:
     observation_i = 3;  % iterator into serialized observations
     error_i = 1;  % iterating frames, need another iterator for the error
@@ -23,7 +22,7 @@ if with_pattern
         % All errors of a frame are affected by its pose.
         pattern(error_i:error_i+2*num_keypoints_in_frame-1, ...
             (frame_i-1)*6+1:frame_i*6) = 1;
-
+        
         % Each error is then also affected by the corresponding landmark.
         landmark_indices = observations(...
             observation_i+2*num_keypoints_in_frame+1:...
@@ -33,13 +32,13 @@ if with_pattern
                 1+num_frames*6+(landmark_indices(kp_i)-1)*3:...
                 num_frames*6+landmark_indices(kp_i)*3) = 1;
         end
-
+        
         observation_i = observation_i + 1 + 3*num_keypoints_in_frame;
         error_i = error_i + 2 * num_keypoints_in_frame;
     end
 %     figure(4);
 %     spy(pattern);
-
+    
     % don't optimize landmarks coordinate if it's not matched for all key
     % frames
     for i = observations(1)*6+1:size(pattern,2)
@@ -47,27 +46,21 @@ if with_pattern
             pattern(:,i) = 0;
         end
     end
-
+    
 %     figure(5)
 %     spy(pattern);
 end
 
 % Also here, using an external error function for clean code.
 error_terms = @(hidden_state) baError(hidden_state, observations, K);
-% options = optimoptions(@lsqnonlin, 'Display', 'iter', ...
-%     'MaxIter', 20, 'FunctionTolerance', 1e-2);
-% if with_pattern
-%     options.JacobPattern = pattern;
-%     options.UseParallel = false;
-% end
-% modidied
 options = optimoptions(@lsqnonlin, 'Display', 'iter', ...
-    'MaxIter', 5, 'FunctionTolerance', 1e-2);
+    'MaxIter', 20, 'FunctionTolerance', 1e-2);
 if with_pattern
     options.JacobPattern = pattern;
-    options.UseParallel = true;
+    options.UseParallel = false;
 end
 hidden_state = lsqnonlin(error_terms, hidden_state, [], [], options);
 
 end
 
+ 
