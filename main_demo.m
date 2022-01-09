@@ -14,6 +14,7 @@ addpath('Initialization')
 % 3: epfl_parking (customized)
 % 4: lausanne_center_nav (customized)
 ds = 0;
+datasets = {'kitti', 'malaga', 'parking', 'epfl_parking', 'lausanne_center_nav'};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 hyper_paras.is_BA = false; % whether to use BA to refine the estimation
@@ -40,9 +41,10 @@ hyper_paras.r_discard_redundant = 5; % [pixel]
 hyper_paras.angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
 
 % use visualization
-hyper_paras.viz_all = true; % true false
+hyper_paras.viz_all = false; % true false
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+param_tic = tic; 
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
@@ -67,7 +69,7 @@ if ds == 0
     % specific hyperparameters
     hyper_paras.min_depth = 1;
     hyper_paras.r_discard_redundant = 10;
-    hyper_paras.max_depth = 60;
+    hyper_paras.max_depth = 80;
     hyper_paras.angle_threshold = 1;
 
     ground_truth = load([kitti_path '/poses/05.txt']);
@@ -151,9 +153,11 @@ else
     assert(false);
 end
 
+toc_param = toc(param_tic); 
+
 %% Bootstrap
 % need to set bootstrap_frames for each dataset
-
+bootstrap_tic = tic;
 if ds == 0
     % hint from project statement
     bootstrap_frames = [0 2]; % naming from `000000.png`
@@ -257,7 +261,11 @@ if hyper_paras.is_refine_pose
     T_init_WC = T_refinement(T_init_WC, keypoints', p_W_landmarks', K);
 end
 
+toc_bootstrap = toc(bootstrap_tic);
+
 %% Initialize state
+
+ct_tic = tic;
 
 S.X = p_W_landmarks';
 S.P = double(fliplr(keypoints))';
@@ -433,11 +441,28 @@ for i = range
     prev_img = image;
 end
 
+toc_ct = toc(ct_tic);
+frame_init = img_seq_len;
+frame_ct = numel(range);
+fps_ct = frame_ct/toc_ct;
+
+total_time = toc_param + toc_bootstrap + toc_ct;
+
 if has_gt
     errs = quantitative_eval(ground_truth,S,bootstrap_frames);
 else
     errs = quantitative_eval(gt_scale,S,bootstrap_frames);
 end
 
-
 % TIC, TOC, errs  autosave
+eval_path = './eval';
+dataset_str = ['dataset@' datasets{ds+1}];
+feat_str = ['feat@' hyper_paras.feature_extract];
+now_str = char(datetime('now','TimeZone','local','Format','HH_mm_ss'));
+time_str = ['time@' now_str];
+experiment_name = strcat(dataset_str, '_', feat_str, '_', time_str, '_');
+savename = [eval_path '/' experiment_name 'res.mat'];
+save(savename, ...
+    'errs', 'total_time', ...
+    'frame_init', 'frame_ct', ...
+    "toc_param", "toc_bootstrap","toc_ct", "fps_ct")

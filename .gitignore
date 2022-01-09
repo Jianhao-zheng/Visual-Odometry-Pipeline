@@ -10,6 +10,7 @@ data/epfl_parking/image
 
 # folders
 archive/
+eval/
 
 # extensions
 *.asv
