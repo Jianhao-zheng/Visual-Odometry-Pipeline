@@ -83,6 +83,7 @@ if use_validity
             keypoints); 
     end
 else
+    corresponding_matches = 1:size(matched_points,2);
     plotMatches(corresponding_matches, ...
         matched_points, ...
         keypoint_database);

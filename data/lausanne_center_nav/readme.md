@@ -2,10 +2,11 @@
 
 ## Info
 
-- FPS: 4.92 Hz
+- FPS: ~4.92
 - Number of frames: 137
-- Location: Lausanne center
-- Source: images from RealSense camera
+- Resolution: 640x480
+- Location: Lausanne center with challenging moving pedestrians
+- Source: images from RealSense camera @ ~14Hz
 - Benchmark: VIO results from RealSense T265 camera
 
 ## Download
@@ -22,17 +23,15 @@
 │   └── data.yaml
 ├── cam_info.json
 ├── image
-│   ├── 0000.png
-│   ├── ...
-│   └── 0136.png
 ├── image.zip
 ├── img_ts.csv
-├── readme.md
-└── scripts
-    ├── bag2images.py
-    └── gen_rosbag_yaml.sh
+└──readme.md
 ```
 
-## To-do
+## Challenges
 
-- compute interpolated pose in corresponding timestamp of frames
+- challenging moving pedestrians around 50th frame lead to unsolved RANSAC
+
+  ![failure_frame50_SURF_threshold10](./failure_frame50_SURF_threshold10.png)
+
+  

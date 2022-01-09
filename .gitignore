@@ -5,6 +5,8 @@ data/parking
 data/data_exe7
 !data/lausanne_center_nav/
 data/lausanne_center_nav/image
+!data/epfl_parking/
+data/epfl_parking/image
 
 # folders
 archive/
