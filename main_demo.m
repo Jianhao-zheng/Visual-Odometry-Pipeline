@@ -44,7 +44,7 @@ hyper_paras.angle_threshold = 5; %start with 10 degree dervie by Rule of the thu
 hyper_paras.viz_all = false; % true false
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-param_tic = tic; 
+param_tic = tic;
 
 if ds == 0
     % need to set kitti_path to folder containing "05" and "poses"
@@ -153,7 +153,7 @@ else
     assert(false);
 end
 
-toc_param = toc(param_tic); 
+toc_param = toc(param_tic);
 
 %% Bootstrap
 % need to set bootstrap_frames for each dataset
@@ -285,7 +285,7 @@ S.num_new = 0;
 
 % struct for bundle adjustment
 B.window_size = 3; %size of window to do bundle adjustment (# of keyframes)
-B.keyframe_d = 2; % we choose keyframe every (keyframe_d+1) frame 
+B.keyframe_d = 2; % we choose keyframe every (keyframe_d+1) frame
 B.num_key = 1; % number of keyframes stored
 B.count_frame = 0; % auxiliary variable to decide whether next is a key frame, taking value from [0,..,B.keyframe_d]
 B.m = size(S.X,2);
@@ -442,17 +442,11 @@ for i = range
 end
 
 toc_ct = toc(ct_tic);
-frame_init = img_seq_len;
+frame_init = img_seq_len+1;
 frame_ct = numel(range);
 fps_ct = frame_ct/toc_ct;
 
 total_time = toc_param + toc_bootstrap + toc_ct;
-
-if has_gt
-    errs = quantitative_eval(ground_truth,S,bootstrap_frames);
-else
-    errs = quantitative_eval(gt_scale,S,bootstrap_frames);
-end
 
 % TIC, TOC, errs  autosave
 eval_path = './eval';
@@ -460,9 +454,21 @@ dataset_str = ['dataset@' datasets{ds+1}];
 feat_str = ['feat@' hyper_paras.feature_extract];
 now_str = char(datetime('now','TimeZone','local','Format','HH_mm_ss'));
 time_str = ['time@' now_str];
-experiment_name = strcat(dataset_str, '_', feat_str, '_', time_str, '_');
-savename = [eval_path '/' experiment_name 'res.mat'];
-save(savename, ...
-    'errs', 'total_time', ...
-    'frame_init', 'frame_ct', ...
+experiment_name = strcat(dataset_str, '_', feat_str, '_', time_str);
+if ~hyper_paras.is_refine_pose
+    experiment_name = strcat(experiment_name, '_NoRefined');
+end
+save_name = [eval_path '/' experiment_name];
+
+if has_gt
+    errs = quantitative_eval(...
+        ground_truth,...
+        S,...
+        bootstrap_frames,...
+        save_name);
+end
+
+save([save_name, '_res.mat'], ...
+    'errs', 'S', ...
+    'total_time', 'frame_init', 'frame_ct', ...
     "toc_param", "toc_bootstrap","toc_ct", "fps_ct")
