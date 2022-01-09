@@ -68,10 +68,7 @@ for ii = 1:num_added
     R_first_W_C = R_first';
     T_first_W_C = -R_first'*T_first;
     
-    % inspired by exe5
-%     SE3_c_f = [R_C_W t_C_W; zeros(1,3) 1]*[R_first_W_C T_first_W_C; zeros(1,3) 1];
-%     P_est = triangulation_2(p_first(:,ii),p_current(:,ii),SE3_c_f,[R_first_W_C T_first_W_C; zeros(1,3) 1],K);
-    % for debug
+    % to compute reprojection error
     reproj1 = M_current_C_W*P_est;
     reproj1 = reproj1/reproj1(3);
     reproj2 = M_first_C_W*P_est;
@@ -79,12 +76,24 @@ for ii = 1:num_added
     
     % filter points behind and too far from the camera
     P_est_local_coord = T_W_C\P_est;
-    if P_est_local_coord(3) > hyper_paras.min_depth && P_est_local_coord(3) < hyper_paras.max_depth 
-        S.X = [S.X, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
-        B.landmarks = [B.landmarks, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
-        B.new_idx = B.new_idx + 1;
-        B.m = size(B.landmarks,2);
-        S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
+    
+    if hyper_paras.is_BA
+        if P_est_local_coord(3) > hyper_paras.min_depth && P_est_local_coord(3) < hyper_paras.max_depth...
+                && norm(reproj1-p_current(:,ii)) < 1 && norm(reproj2-p_first(:,ii)) < 1
+            S.X = [S.X, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
+            B.landmarks = [B.landmarks, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
+            B.new_idx = B.new_idx + 1;
+            B.m = size(B.landmarks,2);
+            S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
+        end
+    else
+        if P_est_local_coord(3) > hyper_paras.min_depth && P_est_local_coord(3) < hyper_paras.max_depth 
+            S.X = [S.X, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
+            B.landmarks = [B.landmarks, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
+            B.new_idx = B.new_idx + 1;
+            B.m = size(B.landmarks,2);
+            S.P = [S.P, [p_current(2,ii); p_current(1,ii)]]; % (u,v) to (row, col) 
+        end
     end
         
 %     if P_est(3) > T_W_C(3) && norm(reproj1-p_current(:,ii)) < 40 && norm(reproj2-p_first(:,ii)) < 40

@@ -16,6 +16,6 @@ reproj_keypoints = reproj_keypoints./(reproj_keypoints(3,:));
 
 error = keypoints - reproj_keypoints(1:2,:);
 
-% error = error(:); 
-error = vecnorm(error); % L2, more reasonable in theory
+error = error(:); 
+% error = vecnorm(error); % L2, more reasonable in theory
 end
