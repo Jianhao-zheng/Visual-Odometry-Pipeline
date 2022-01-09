@@ -56,10 +56,28 @@ if B.count_frame == B.keyframe_d %it's a new key frame (optimize both landmarks 
             S.est_trans(:,end-3*(B.num_key-i)) = T(1:3,4);
         end
         B.landmarks(1:3,:) = reshape(optimized_state(B.num_key*6+1:end),[3,B.m]);
-
-        for i = 1:size(S.X,2)
-            idx = find(B.landmarks(4,:)==S.X(4,i)); %%%can be speed up
-            S.X(1:3,i) = B.landmarks(1:3,idx);
+        
+        [~,index] = find(B.landmarks(4,:)==S.X(4,:)');
+        S.X(1:3,:) = B.landmarks(1:3,index);
+%         for i = 1:size(S.X,2)
+%             idx = find(B.landmarks(4,:)==S.X(4,i)); %%%can be speed up
+%             S.X(1:3,i) = B.landmarks(1:3,idx);
+%         end
+        for i = 1:B.num_key - 1
+            for j = 1:B.keyframe_d
+                idx = B.keyframe_d*(i-1) + j;
+                T_W_C_frame = B.normal_frame_refine{idx}{1};
+                keypoints_frame = B.normal_frame_refine{idx}{2};
+                landmarks_index = B.normal_frame_refine{idx}{3};
+                [~,index] = find(B.landmarks(4,:)==landmarks_index');
+                landmarks_frame = B.landmarks(1:3,index);
+                
+                refined_T_W_C_frame = T_refinement(T_W_C_frame, keypoints_frame, landmarks_frame, K);
+                S.est_rot(:,end-3*(B.num_key-i)+j) = [refined_T_W_C_frame(1:3,1);...
+                                                      refined_T_W_C_frame(1:3,2);...
+                                                      refined_T_W_C_frame(1:3,3)];
+                S.est_trans(:,end-3*(B.num_key-i)+j) = refined_T_W_C_frame(1:3,4);
+            end
         end
     end
     B.count_frame = 0;

@@ -32,8 +32,9 @@ hold on;
 p2 = plot(S.est_trans(1,:),S.est_trans(3,:),'r','MarkerSize',3);
 p2.Marker = '*';
 hold off;
-legend('ground truth','estimated','FontSize',10);
+legend('Scaled GT','Estimated','FontSize',10);
 title('Full trajectory');
+axis equal
 % axis([min([S.est_trans(1,:),gt(1:i+1,1)']) - 0.25*abs(min([S.est_trans(1,:),gt(1:i+1,1)']))...
 %       max([S.est_trans(1,:),gt(1:i+1,1)']) + 0.25*abs(max([S.est_trans(1,:),gt(1:i+1,1)']))...
 %       -5 5]) %to be changed

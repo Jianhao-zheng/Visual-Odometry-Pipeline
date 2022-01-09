@@ -94,6 +94,8 @@ while num_iterations > i
             alternative_is_inlier = errors < pixel_tolerance^2;
             if nnz(alternative_is_inlier) > nnz(is_inlier)
                 is_inlier = alternative_is_inlier;
+                R_C_W_guess(:, :, 1) = R_C_W_guess(:, :, 1+alt_idx); % is modified for VO project
+                t_C_W_guess(:,:,1) = t_C_W_guess(:,:,1+alt_idx); % is modified for VO project
             end
         end
     end
@@ -108,6 +110,9 @@ while num_iterations > i
             nnz(is_inlier) >= min_inlier_count
         max_num_inliers = nnz(is_inlier);        
         best_inlier_mask = is_inlier;
+        
+        % is modified for VO project (use best pnp estimation as outpu)
+        best_T_C_W = [R_C_W_guess(:, :, 1), t_C_W_guess(:, :, 1); zeros(1,3) 1]; 
     end
     
     if adaptive
@@ -115,13 +120,13 @@ while num_iterations > i
         outlier_ratio = 1 - max_num_inliers / numel(is_inlier);
         % formula to compute number of iterations from estimated outlier
         % ratio
-        confidence = 0.95;
-        upper_bound_on_outlier_ratio = 0.90;
+        confidence = 0.9999; % is tuned for VO project
+        upper_bound_on_outlier_ratio = 0.95; % is tuned for VO project
         outlier_ratio = min(upper_bound_on_outlier_ratio, outlier_ratio);
         num_iterations = log(1-confidence)/log(1-(1-outlier_ratio)^k);
         % cap the number of iterations at 15000
         num_iterations = min(15000, num_iterations);
-        num_iterations = max(10, num_iterations);
+        num_iterations = max(100, num_iterations);
     end
     
     num_iteration_history(i) = num_iterations;
@@ -134,11 +139,16 @@ if max_num_inliers == 0
     R_C_W = [];
     t_C_W = [];
 else
-    M_C_W = estimatePoseDLT(...
-        matched_query_keypoints(:, best_inlier_mask>0)', ...
-        corresponding_landmarks(:, best_inlier_mask>0)', K);
-    R_C_W = M_C_W(:, 1:3);
-    t_C_W = M_C_W(:, end);
+    if use_p3p
+        R_C_W = best_T_C_W(1:3,1:3);
+        t_C_W = best_T_C_W(1:3,4);
+    else
+        M_C_W = estimatePoseDLT(...
+            matched_query_keypoints(:, best_inlier_mask>0)', ...
+            corresponding_landmarks(:, best_inlier_mask>0)', K);
+        R_C_W = M_C_W(:, 1:3);
+        t_C_W = M_C_W(:, end);
+    end
 end
 
 if adaptive

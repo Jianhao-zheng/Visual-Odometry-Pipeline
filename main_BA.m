@@ -11,12 +11,13 @@ addpath('Initialization')
 ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
+hyper_paras.is_BA = false; % whether to use BA to refine the estimation
+hyper_paras.is_refine_pose = true; % whether to refine pose estimation by reprojection error
 
 hyper_paras.feature_extract = 'SURF'; %method to extract features
 hyper_paras.feature_extract_options = {'MetricThreshold', 10};
-% feature_extract = 'Harris';
-% feature_extract_options = {'MinQuality',1e-6};
+% hyper_paras.feature_extract = 'Harris';
+% hyper_paras.feature_extract_options = {'MinQuality',1e-6};
 
 hyper_paras.init_matching_method = 'KLT'; % method to matching keypoints, two options: ['KLT', 'Des_match']
 hyper_paras.show_match_res = false;
@@ -47,9 +48,15 @@ if ds == 0
         0 0 1];
     
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 1500};
+    if hyper_paras.is_BA 
+        hyper_paras.feature_extract_options = {'MetricThreshold', 1000}; %less keypoint to speed up
+%         hyper_paras.feature_extract_options = {'MinQuality',1e-6}; %less keypoint to speed up
+    else
+        hyper_paras.feature_extract_options = {'MetricThreshold', 100};
+%         hyper_paras.feature_extract_options = {'MinQuality',1e-4};
+    end
     hyper_paras.min_depth = 1; 
-    hyper_paras.r_discard_redundant = 5;
+    hyper_paras.r_discard_redundant = 10;
     hyper_paras.max_depth = 100;
     hyper_paras.angle_threshold = 1;
 elseif ds == 1
@@ -154,7 +161,10 @@ cameraParams = cameraParameters('IntrinsicMatrix', K');
 % initial results for continuous operation
 p_W_landmarks = double(pts3d);
 keypoints = double(matched_points_valid);
-T_init_WC = T_refinement(T_init_WC, keypoints', p_W_landmarks', K);
+
+if hyper_paras.is_refine_pose
+    T_init_WC = T_refinement(T_init_WC, keypoints', p_W_landmarks', K);
+end
 
 %% Initialize state
 
@@ -210,14 +220,14 @@ plot_all(database_image,S,gt_scale,2,bootstrap_frames(2))
 
 % generate and initialize KLT tracker
 % for landmark tracking
-KLT_tracker_L = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
-    'MaxIterations',50,'MaxBidirectionalError',3);
+KLT_tracker_L = vision.PointTracker('BlockSize',[21 21],'NumPyramidLevels',5,...
+    'MaxIterations',20,'MaxBidirectionalError',6);
 initialize(KLT_tracker_L,fliplr(S.P'),database_image);
 prev_img = database_image;
 
 % for candidate keypoints tracking
-KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
-    'MaxIterations',50,'MaxBidirectionalError',3);
+KLT_tracker_C = vision.PointTracker('BlockSize',[21 21],'NumPyramidLevels',5,...
+    'MaxIterations',20,'MaxBidirectionalError',6);
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -255,8 +265,10 @@ for i = range
     S.P = matched_points_valid((inlier_mask)>0,:)';
     S.X = S.X(:,validity);
     S.X = S.X(:,(inlier_mask)>0);
-
-    T_W_C = T_refinement(T_W_C, flipud(S.P), S.X(1:3,:), K);
+    
+    if hyper_paras.is_refine_pose
+        T_W_C = T_refinement(T_W_C, flipud(S.P), S.X(1:3,:), K);
+    end
     S.est_trans = [S.est_trans, T_W_C(1:3,4)];
     R_W_C = T_W_C(1:3,1:3);
     S.est_rot = [S.est_rot, R_W_C(:)];
@@ -265,7 +277,9 @@ for i = range
     if ~isempty(S.C)
         [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,hyper_paras);
     end
-    [S,B] = VO_bundle_adjust(S,B,T_W_C,K);
+    if hyper_paras.is_BA
+        [S,B] = VO_bundle_adjust(S,B,T_W_C,K);
+    end
 
     S = update_candidate(S,valid_key_candidates,image,K,hyper_paras);
 
