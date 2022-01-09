@@ -14,7 +14,13 @@ addpath('Initialization')
 % 3: epfl_parking (customized)
 % 4: lausanne_center_nav (customized)
 ds = 0;
+
 datasets = {'kitti', 'malaga', 'parking', 'epfl_parking', 'lausanne_center_nav'};
+feats = {'SURF', 'Harris', 'BRISK', 'FAST'}; % 'SURF', 'Harris', 'BRISK', 'FAST'
+repetition = 5;
+
+for feat_i = 1:numel(feats)
+for rep_i = 1:repetition
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 hyper_paras.is_BA = false; % whether to use BA to refine the estimation
@@ -151,6 +157,20 @@ elseif ds == 4
     has_gt = false;
 else
     assert(false);
+end
+
+feat = feats{feat_i};
+hyper_paras.feature_extract = feat;
+
+switch feat
+    case 'SURF'
+        hyper_paras.feature_extract_options = {'MetricThreshold', 200}; % 1336
+    case 'Harris'
+        hyper_paras.feature_extract_options = {'MinQuality',2e-4}; % 1294
+    case 'BRISK'
+        hyper_paras.feature_extract_options = {'MinQuality',2e-3}; % 1275
+    case 'FAST'
+        hyper_paras.feature_extract_options = {'MinContrast',0.11}; % 1362
 end
 
 toc_param = toc(param_tic);
@@ -472,3 +492,6 @@ save([save_name, '_res.mat'], ...
     'errs', 'S', ...
     'total_time', 'frame_init', 'frame_ct', ...
     "toc_param", "toc_bootstrap","toc_ct", "fps_ct")
+
+end
+end

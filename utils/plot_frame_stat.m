@@ -7,7 +7,7 @@ end
 
 figure(fig_idx);
 set(gcf,'outerposition',get(0,'screensize'));
-set(0,'DefaultFigureWindowStyle','docked')
+% set(0,'DefaultFigureWindowStyle','docked')
 
 %% plot1: matching result with image
 subplot(2, 4, [1 2]);
