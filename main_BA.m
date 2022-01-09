@@ -50,7 +50,7 @@ if ds == 0
     
     % tuned hyperparameters
     if hyper_paras.is_BA 
-        hyper_paras.feature_extract_options = {'MetricThreshold', 1000}; %less keypoint to speed up
+        hyper_paras.feature_extract_options = {'MetricThreshold', 100}; %less keypoint to speed up
 %         hyper_paras.feature_extract_options = {'MinQuality',1e-6}; %less keypoint to speed up
     else
         hyper_paras.feature_extract_options = {'MetricThreshold', 200};
@@ -187,7 +187,7 @@ S.num_new = 0;
 
 % struct for bundle adjustment
 B.window_size = 3; %size of window to do bundle adjustment (# of keyframes)
-B.keyframe_d = 2; % we choose keyframe with constant distance
+B.keyframe_d = 1; % we choose keyframe with constant distance
 B.num_key = 1; % number of keyframes stored
 B.count_frame = 0; % auxiliary variable to decide whether next is a key frame, taking value from [0,..,B.keyframe_d]
 B.m = size(S.X,2);
@@ -279,7 +279,7 @@ for i = range
         [S,B] = update_landmarks(S,B,KLT_tracker_C,image,K,hyper_paras);
     end
     if hyper_paras.is_BA
-        [S,B] = VO_bundle_adjust(S,B,T_W_C,K);
+        [S,B] = VO_bundle_adjust(S,B,T_W_C,K,hyper_paras);
     end
 
     S = update_candidate(S,valid_key_candidates,image,K,hyper_paras);

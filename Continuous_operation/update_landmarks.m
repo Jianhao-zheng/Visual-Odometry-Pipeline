@@ -79,7 +79,7 @@ for ii = 1:num_added
     
     if hyper_paras.is_BA
         if P_est_local_coord(3) > hyper_paras.min_depth && P_est_local_coord(3) < hyper_paras.max_depth...
-                && norm(reproj1-p_current(:,ii)) < 1 && norm(reproj2-p_first(:,ii)) < 1
+                && norm(reproj1-p_current(:,ii)) < 100 && norm(reproj2-p_first(:,ii)) < 100
             S.X = [S.X, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
             B.landmarks = [B.landmarks, [P_est(1:3); B.new_idx]]; % TODO: if speed up, pay attention to this
             B.new_idx = B.new_idx + 1;

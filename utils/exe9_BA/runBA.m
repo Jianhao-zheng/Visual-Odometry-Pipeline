@@ -61,13 +61,29 @@ error_terms = @(hidden_state) baError(hidden_state, observations, K);
 %     options.UseParallel = false;
 % end
 % modidied
+tic
 options = optimoptions(@lsqnonlin, 'Display', 'iter', ...
-    'MaxIter', 5, 'FunctionTolerance', 1e-2);
+    'MaxIter', 1, 'FunctionTolerance', 1e-2);
+
 if with_pattern
     options.JacobPattern = pattern;
-    options.UseParallel = true;
+    options.UseParallel = false;
 end
+state_before_opt = hidden_state;
 hidden_state = lsqnonlin(error_terms, hidden_state, [], [], options);
+time=toc;
 
+if time < 0.5
+    options = optimoptions(@lsqnonlin, 'Display', 'iter', ...
+        'MaxIter', 20);
+
+    if with_pattern
+        options.JacobPattern = pattern;
+        options.UseParallel = false;
+    end
+    hidden_state = lsqnonlin(error_terms, hidden_state, [], [], options);
+else
+    hidden_state = state_before_opt;
+end
 end
 
