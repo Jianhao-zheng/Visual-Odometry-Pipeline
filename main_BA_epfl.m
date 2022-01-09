@@ -13,7 +13,7 @@ addpath('Initialization')
 % 2: parking
 % 3: epfl_parking (customized)
 % 4: lausanne_center_nav (customized)
-ds = 1;
+ds = 4;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 hyper_paras.is_BA = false; % whether to use BA to refine the estimation
@@ -40,7 +40,7 @@ hyper_paras.r_discard_redundant = 5; % [pixel]
 hyper_paras.angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
 
 % use visualization
-hyper_paras.viz_all = false; % true false
+hyper_paras.viz_all = true; % true false
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -304,8 +304,10 @@ switch ds % 0: KITTI, 1: Malaga, 2: parking
         % for lausanne_center_nav
         gt_scale = zeros(last_frame+bootstrap_frames(2),2);
 end
+
 database_image = img_seqs{end};
-plot_all(database_image,S,gt_scale,2,bootstrap_frames(2))
+% plot_frame_stat(database_image,S,gt_scale,2,bootstrap_frames(2))
+
 %% Continuous operation
 
 % generate and initialize KLT tracker
@@ -398,7 +400,7 @@ for i = range
     S.num_C = [S.num_C; size(S.C,2)];
 
     if hyper_paras.viz_all
-        plot_all(image,S,gt_scale,2,i)
+        plot_frame_stat(image,S,gt_scale,2,i,hyper_paras.max_depth)
         % Makes sure that plots refresh.
         pause(0.01);
     end
