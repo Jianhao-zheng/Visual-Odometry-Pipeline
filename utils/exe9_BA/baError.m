@@ -49,7 +49,8 @@ for i = 1:num_frames
         pause(0.01);
     end
     
-    error_terms = [error_terms keypoints-projections];
+%     error_terms = [error_terms keypoints-projections]; %original
+    error_terms = [error_terms vecnorm(keypoints-projections)]; %reduced dimension
     
     observation_i = observation_i + num_frame_observations * 3 + 1;
 end
