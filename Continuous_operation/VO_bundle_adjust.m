@@ -52,8 +52,8 @@ if B.count_frame == B.keyframe_d %it's a new key frame (optimize both landmarks 
 
         for i = 1:B.num_key
             T = twist2HomogMatrix(optimized_state((i-1)*6+1:(i-1)*6+6));
-            S.est_rot(:,end-3*(B.num_key-i)) = [T(1:3,1); T(1:3,2); T(1:3,3)];
-            S.est_trans(:,end-3*(B.num_key-i)) = T(1:3,4);
+            S.est_rot(:,end-(B.keyframe_d+1)*(B.num_key-i)) = [T(1:3,1); T(1:3,2); T(1:3,3)];
+            S.est_trans(:,end-(B.keyframe_d+1)*(B.num_key-i)) = T(1:3,4);
         end
         B.landmarks(1:3,:) = reshape(optimized_state(B.num_key*6+1:end),[3,B.m]);
         
@@ -78,10 +78,10 @@ if B.count_frame == B.keyframe_d %it's a new key frame (optimize both landmarks 
                 landmarks_frame = B.landmarks(1:3,index);
                 
                 refined_T_W_C_frame = T_refinement(T_W_C_frame, keypoints_frame, landmarks_frame, K);
-                S.est_rot(:,end-3*(B.num_key-i)+j) = [refined_T_W_C_frame(1:3,1);...
+                S.est_rot(:,end-(B.keyframe_d+1)*(B.num_key-i)+j) = [refined_T_W_C_frame(1:3,1);...
                                                       refined_T_W_C_frame(1:3,2);...
                                                       refined_T_W_C_frame(1:3,3)];
-                S.est_trans(:,end-3*(B.num_key-i)+j) = refined_T_W_C_frame(1:3,4);
+                S.est_trans(:,end-(B.keyframe_d+1)*(B.num_key-i)+j) = refined_T_W_C_frame(1:3,4);
             end
         end
     end

@@ -43,7 +43,7 @@ if with_pattern
     % don't optimize landmarks coordinate if it's not matched for all key
     % frames
     for i = observations(1)*6+1:size(pattern,2)
-        if length(find(pattern(:,i)>0)) < 3*2
+        if length(find(pattern(:,i)>0)) < 2*2
             pattern(:,i) = 0;
         end
     end

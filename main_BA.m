@@ -11,7 +11,7 @@ addpath('Initialization')
 ds = 0; % 0: KITTI, 1: Malaga, 2: parking
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-hyper_paras.is_BA = true; % whether to use BA to refine the estimation
+hyper_paras.is_BA = false; % whether to use BA to refine the estimation (only works in parking data !!!!!)
 hyper_paras.is_refine_pose = true; % whether to refine pose estimation by reprojection error
 
 hyper_paras.feature_extract = 'SURF'; %method to extract features
@@ -82,11 +82,18 @@ elseif ds == 2
     % Path containing images, depths and all...
     parking_path = 'data/parking';
     assert(exist('parking_path', 'var') ~= 0);
-    last_frame = 598;
+%     last_frame = 598;
+    last_frame = 500;
     K = load([parking_path '/K.txt']);
      
     ground_truth = load([parking_path '/poses.txt']);
     ground_truth = ground_truth(:, [end-8 end]);
+    
+    hyper_paras.feature_extract_options = {'MetricThreshold', 100};
+    hyper_paras.min_depth = 2;
+    hyper_paras.r_discard_redundant = 10;
+    hyper_paras.max_depth = 50;
+    hyper_paras.angle_threshold = 0.8;
 else
     assert(false);
 end
@@ -186,7 +193,7 @@ S.num_C = size(S.C,2);
 S.num_new = 0;
 
 % struct for bundle adjustment
-B.window_size = 3; %size of window to do bundle adjustment (# of keyframes)
+B.window_size = 5; %size of window to do bundle adjustment (# of keyframes)
 B.keyframe_d = 1; % we choose keyframe with constant distance
 B.num_key = 1; % number of keyframes stored
 B.count_frame = 0; % auxiliary variable to decide whether next is a key frame, taking value from [0,..,B.keyframe_d]
@@ -231,6 +238,7 @@ KLT_tracker_C = vision.PointTracker('BlockSize',[21 21],'NumPyramidLevels',5,...
     'MaxIterations',20,'MaxBidirectionalError',6);
     
 range = (bootstrap_frames(2)+1):last_frame;
+ct_tic = tic;
 for i = range
     fprintf('\n\nProcessing frame %d\n=====================\n', i);
     if ds == 0
@@ -298,12 +306,13 @@ for i = range
     S.num_X = [S.num_X; size(S.X,2)];
     S.num_C = [S.num_C; size(S.C,2)];
 
-    plot_all(image,S,gt_scale,2,i)
+%     plot_all(image,S,gt_scale,2,i)
 
     % Makes sure that plots refresh.    
     pause(0.01);
     
     prev_img = image;
 end
-
-errs = quantitative_eval(ground_truth,S,bootstrap_frames);
+toc_ct = toc(ct_tic);
+frame_ct = numel(range);
+errs = quantitative_eval(ground_truth,S,bootstrap_frames,'s');

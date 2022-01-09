@@ -9,6 +9,7 @@ Estimated = S.est_trans;
 distance_between_frames = vecnorm(GT(:,2:end) - GT(:,1:end-1));
 
 dist_checkpoints = [10;40;90;160;250;360];
+dist_checkpoints = dist_checkpoints.*0.2; % for parking only
 errs = [];
 
 current_dist = 0;
@@ -21,18 +22,32 @@ for i = 1:size(GT,2)-1
     if current_dist > next_dist_checkpoint
         aligned_est = alignEstimateToGroundTruth(...
             GT(:,1:i), Estimated(:,1:i));
-        errs = [errs, aligned_est(:,end)-Estimated(:,i)];
+        replacement_gt = GT(:,i)-GT(:,1);
+        replacement_est = aligned_est(:,end)-aligned_est(:,1);
+        errs = [errs, abs(replacement_est-replacement_gt)];
 
         figure(3)
-        plot(GT(3, 1:i), -GT(1, 1:i));
+%         plot(GT(3, 1:i), -GT(1, 1:i),'LineWidth',5);
+%         hold on;
+%         plot(Estimated(3, 1:i), -Estimated(1, 1:i),'LineWidth',5);
+%         plot(aligned_est(3, :), -aligned_est(1, :),'LineWidth',5);
+%         hold off;
+%         axis equal;
+%         % axis([-5 95 -30 10]);
+%         legend('Ground truth', 'Original estimate', 'Aligned estimate', ...
+%             'Location', 'SouthWest','FontSize',25);
+%         set(gca,'FontSize',25);
+        
+        plot(GT(3, 1:i), -GT(1, 1:i),'LineWidth',5);
         hold on;
-        plot(Estimated(3, 1:i), -Estimated(1, 1:i));
-        plot(aligned_est(3, :), -aligned_est(1, :));
+%         plot(Estimated(3, 1:i), -Estimated(1, 1:i),'LineWidth',5);
+        plot(aligned_est(3, :), -aligned_est(1, :),'LineWidth',5);
         hold off;
         axis equal;
         % axis([-5 95 -30 10]);
-        legend('Ground truth', 'Original estimate', 'Aligned estimate', ...
-            'Location', 'SouthWest');
+        legend('Ground truth',  'Aligned estimate', ...
+            'Location', 'SouthWest','FontSize',25);
+        set(gca,'FontSize',25);
 
 
         if length(dist_checkpoints) == 1
@@ -48,7 +63,7 @@ for i = 1:size(GT,2)-1
 end
 
 if save_fig
-    print(save_name,'-dpng');
+%     print(save_name,'-dpng');
     % print(save_name,'-dpdf','-bestfit');
 end
 
