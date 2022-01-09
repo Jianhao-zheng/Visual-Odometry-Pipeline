@@ -1,5 +1,5 @@
 %% Setup
-% close all;
+close all;
 clear;
 clc;
 
@@ -8,7 +8,7 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 3; % 0: KITTI, 1: Malaga, 2: parking 3: lausanne_center_nav
+ds = 3; % 0: KITTI, 1: Malaga, 2: parking 3: epfl_parking 4: lausanne_center_nav
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 hyper_paras.is_single = true; % whether to transfer the variable into single for speeding up
@@ -81,6 +81,22 @@ elseif ds == 2
     ground_truth = ground_truth(:, [end-8 end]);
 elseif ds == 3
     % Path containing images, depths and all...
+    epfl_path = 'data/epfl_parking';
+    assert(exist('epfl_path', 'var') ~= 0);
+    image_dir = dir([epfl_path '/image']);
+    images = image_dir(3:end);
+    last_frame = length(images);
+    K = load([epfl_path '/calibration' '/K.txt']);
+    % TODO: no GT available for now!!!
+    
+    % tuned hyperparameters
+    hyper_paras.feature_extract_options = {'MetricThreshold', 50};
+    hyper_paras.min_depth = 2; 
+    hyper_paras.r_discard_redundant = 7;
+    hyper_paras.max_depth = 50;
+    hyper_paras.angle_threshold = 0.8;
+elseif ds == 4
+    % Path containing images, depths and all...
     lausanne_path = 'data/lausanne_center_nav';
     assert(exist('lausanne_path', 'var') ~= 0);
     image_dir = dir([lausanne_path '/image']);
@@ -88,12 +104,10 @@ elseif ds == 3
     last_frame = length(images);
     K = load([lausanne_path '/K.txt']);
     % TODO: no GT available for now!!!
-    % ground_truth = load([lausanne_path '/poses.txt']);
-    % ground_truth = ground_truth(:, [end-8 end]);
 
     % tuned hyperparameters
-    hyper_paras.feature_extract_options = {'MetricThreshold', 100};
-    hyper_paras.min_depth = 2; 
+    hyper_paras.feature_extract_options = {'MetricThreshold', 10};
+    hyper_paras.min_depth = 10; 
     hyper_paras.r_discard_redundant = 7;
     hyper_paras.max_depth = 50;
     hyper_paras.angle_threshold = 0.8;
@@ -150,6 +164,22 @@ elseif ds == 2
         sprintf('/images/img_%05d.png',fr_idx)]));
     end
 elseif ds == 3
+    bootstrap_frames = [1 5]; % naming from `0000.png`
+    img_seq_len = bootstrap_frames(2) - bootstrap_frames(1);
+
+    img0 = rgb2gray(imread([epfl_path ...
+        '/image/' ...
+        images(bootstrap_frames(1)).name]));
+
+    img_seqs = cell(img_seq_len,1);
+    % import intermediate images between bootstrap_frames
+    for i = 1:img_seq_len
+        fr_idx = i + bootstrap_frames(1);
+        img_seqs{i} = rgb2gray(imread([epfl_path ...
+        '/image/' ...
+        images(fr_idx).name]));
+    end
+elseif ds == 4
     bootstrap_frames = [0 2]; % naming from `0000.png`
     img_seq_len = bootstrap_frames(2) - bootstrap_frames(1);
 
@@ -224,8 +254,10 @@ switch ds % 0: KITTI, 1: Malaga, 2: parking
         % for parking
         gt_scale = ground_truth./(ground_truth(bootstrap_frames(2)+1,1)/S.est_trans(1,1));
     case 3
+        % for epfl_parking
+        gt_scale = zeros(last_frame,2);
+    case 4
         % for lausanne_center_nav
-        % TODO: update gt -> ground_truth./(ground_truth(bootstrap_frames(2)+1,1)/S.est_trans(1,1));
         gt_scale = zeros(last_frame,2);
 end
 database_image = img_seqs{end};
@@ -234,14 +266,24 @@ plot_all(database_image,S,gt_scale,2,bootstrap_frames(2))
 
 % generate and initialize KLT tracker
 % for landmark tracking
-KLT_tracker_L = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
-    'MaxIterations',50,'MaxBidirectionalError',3);
+% -> provided dataset
+% KLT_tracker_L = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
+%     'MaxIterations',50,'MaxBidirectionalError',3);
+% -> lausanne dataset
+KLT_tracker_L = vision.PointTracker(...
+'BlockSize',[15 15],...
+'NumPyramidLevels',5,...
+'MaxBidirectionalError',3);
 initialize(KLT_tracker_L,fliplr(S.P'),database_image);
 prev_img = database_image;
 
 % for candidate keypoints tracking
-KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
-    'MaxIterations',50,'MaxBidirectionalError',3);
+% KLT_tracker_C = vision.PointTracker('BlockSize',[15 15],'NumPyramidLevels',2,...
+%     'MaxIterations',50,'MaxBidirectionalError',3);
+KLT_tracker_C = vision.PointTracker(...
+'BlockSize',[15 15],...
+'NumPyramidLevels',5,...
+'MaxBidirectionalError',3);
     
 range = (bootstrap_frames(2)+1):last_frame;
 for i = range
@@ -256,6 +298,10 @@ for i = range
         image = im2uint8(rgb2gray(imread([parking_path ...
             sprintf('/images/img_%05d.png',i)])));
     elseif ds == 3
+        image = rgb2gray(imread([epfl_path ...
+            '/image/' ...
+            images(i).name]));
+    elseif ds == 4
         image = im2uint8(rgb2gray(imread([lausanne_path ...
             sprintf('/image/%04d.png',i)])));
     else
@@ -269,8 +315,11 @@ for i = range
 
     % KLT tracking
     [matched_points,validity] = KLT_tracker_L(image);
+
+    disp(length(validity))
     disp(sum(validity) / length(validity))
-    if i == 4
+
+    if hyper_paras.show_matching_res
         plotMatchRes(...
         S.P, ...
         fliplr(matched_points)',...
