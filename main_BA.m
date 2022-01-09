@@ -8,25 +8,25 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 0; % 0: KITTI, 1: Malaga, 2: parking
+ds = 1; % 0: KITTI, 1: Malaga, 2: parking
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
 hyper_paras.is_BA = false; % whether to use BA to refine the estimation
 hyper_paras.is_refine_pose = true; % whether to refine pose estimation by reprojection error
 
 hyper_paras.feature_extract = 'SURF'; %method to extract features
-hyper_paras.feature_extract_options = {'MetricThreshold', 10};
+hyper_paras.feature_extract_options = {'MetricThreshold', 20};
 % hyper_paras.feature_extract = 'Harris';
 % hyper_paras.feature_extract_options = {'MinQuality',1e-6};
 
 hyper_paras.init_matching_method = 'KLT'; % method to matching keypoints, two options: ['KLT', 'Des_match']
-hyper_paras.show_match_res = false;
+hyper_paras.show_matching_res = false;
 hyper_paras.sfm_pose = 'fundamental'; % method to estimate pose from 2D-2D, two options: ['fundamental', 'essential']
 
 % range of vaild landmarks (filter out points behind and too far from the
 % camera)
-hyper_paras.min_depth = 0; 
-hyper_paras.max_depth = 100;
+hyper_paras.min_depth = 2; 
+hyper_paras.max_depth = 50;
 
 % parameters for discarding redundant new candidate keypoints
 hyper_paras.r_discard_redundant = 5; % [pixel]
@@ -75,7 +75,7 @@ elseif ds == 1
     % tuned hyperparameters
     hyper_paras.feature_extract_options = {'MetricThreshold', 400};
     hyper_paras.min_depth = 2; 
-    hyper_paras.r_discard_redundant = 7;
+    hyper_paras.r_discard_redundant = 10;
     hyper_paras.max_depth = 50;
     hyper_paras.angle_threshold = 0.8;
 elseif ds == 2
