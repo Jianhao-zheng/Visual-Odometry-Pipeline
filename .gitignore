@@ -11,8 +11,10 @@ data/epfl_parking/image
 # folders
 archive/
 eval/
+eval_notebook/data/
 
 # extensions
 *.asv
 *.zip
 *.bag
+!eval_notebook/eval_res.zip
