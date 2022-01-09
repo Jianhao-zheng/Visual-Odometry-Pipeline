@@ -1,25 +1,30 @@
+- [**Overview**](#overview)
+- [**Data**](#data)
+  - [Provided datasets](#provided-datasets)
+  - [Customized datasets](#customized-datasets)
+- [**Demo**](#demo)
+- [**Codebase**](#codebase)
+
 # Monocular Visual Odometry Pipeline
 
-> Mini project for [*Vision Algorithms for Mobile Robots*](http://rpg.ifi.uzh.ch/teaching.html) given by [Prof. Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html), 2021
->
-> Implementation of a working, simple, monocular visual odometry (VO) pipeline with the following implementation details:
->
-> - KLT-based or descriptor matching for bootstrapping initialization
-> - KLT Tracking of feature points across frames following by RANSAC
-> - Triangulation of new landmarks
-> - Local pose refinement through optimization
-> - Release two [custom sequences](#custom-datasets)
+> Authors: Jianhao Zheng, Yujie He
+
+## Overview
+
+Mini project for [*Vision Algorithms for Mobile Robots*](http://rpg.ifi.uzh.ch/teaching.html) given by [Prof. Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html), 2021
+
+Implementation of a working, simple, monocular visual odometry (VO) pipeline with the following implementation details:
+
+- KLT-based or descriptor matching for bootstrapping initialization
+- KLT Tracking of feature points across frames following by RANSAC
+- Triangulation of new landmarks
+- Local pose refinement through optimization
+- Bundle adjustment for better pose estimation
+- Release two [custom sequences](#custom-datasets)
 
 
 
-## Authors
-
-- **Jianhao ZHENG**
-- **Yujie HE**
-
-
-
-## Data
+## Provided datasetsData
 
 ### Provided datasets
 
@@ -32,7 +37,7 @@ Download data from [RPG VAME course website](http://rpg.ifi.uzh.ch/teaching.html
 │   └── parking
 ```
 
-### Custom datasets
+### Customized datasets
 
 > For more details, you could refer to readme in following subfolder
 
@@ -51,12 +56,39 @@ Download data from [RPG VAME course website](http://rpg.ifi.uzh.ch/teaching.html
 | epfl_parking        | ![epfl_parking](./gifs/epfl_parking.gif) | [[link](https://www.youtube.com/watch?v=eWNpX07L4_A&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=4)] |
 | lausanne_center_nav | ![epfl_parking](./gifs/lausanne_center_nav.gif) | [[link](https://www.youtube.com/watch?v=qSgeN7ElPik&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=5)] |
 
-## Scripts
+
+
+## Codebase
+
+### Dev Environment
 
 | **Test passed**                                              |
 | ------------------------------------------------------------ |
-| [![matlab-2021b](https://img.shields.io/badge/matlab-2021b-yellow.svg)](https://www.mathworks.com/products/matlab.html) [![matlab-2020b](https://img.shields.io/badge/matlab-2020b-blue.svg)](https://www.mathworks.com/products/matlab.html) with Computer Vision Toolbox, Image Processing Toolbox, Optimization Toolbox |
+| [![matlab-2021b](https://img.shields.io/badge/matlab-2021b-yellow.svg)](https://www.mathworks.com/products/matlab.html) [![matlab-2020b](https://img.shields.io/badge/matlab-2020b-blue.svg)](https://www.mathworks.com/products/matlab.html) |
 
-```plaintext
+- Toolbox used
+  - Computer Vision Toolbox
+  - Image Processing Toolbox
+  - Optimization Toolbox
+
+### Folder Structure
+
 ```
+Visual-Odometry-Pipeline/
+├── Continuous_operation # (matlab) implemented algorithms about continuous operation
+├── Initialization # (matlab) implemented algorithms about initialization
+├── utils # (matlab) utility function for data processing and visualization in the pipeline
+├── eval_notebook # (python) scripts to evaluate performance between different methods
+├── main_BA.m # (matlab) script to demonstrate implemented method with bundle adjustment on `parking` data
+├── main_demo.m # (matlab) script to demonstrate implemented method without bundle adjustment for every dataset
+├── main_eval.m # (matlab) script to batch evaluate the implemented method with different features on `KITTI seq05` data
+├── data # 3 data sequences provided by VAME team and 2 customized sequences
+├── gifs # demonstration gifs
+├── README.md
+├── ...
+```
+
+### Related repos
+
+- [hibetterheyj](https://github.com/hibetterheyj)/**[VideoIMUCapture-Android](https://github.com/hibetterheyj/VideoIMUCapture-Android)** for camera calibration and image preprocessing (undistortion & resize)
 
