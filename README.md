@@ -1,9 +1,16 @@
 - [**Overview**](#overview)
+- [**Codebase**](#codebase)
+  - [Machine specifications](#machine-specifications)
+  - [Dev Environment](#dev-environment)
+  - [How to run](#how-to-run)
+  - [Folder Structure](#folder-structure)
+- [**Demo**](#demo)
 - [**Data**](#data)
   - [Provided datasets](#provided-datasets)
   - [Customized datasets](#customized-datasets)
-- [**Demo**](#demo)
-- [**Codebase**](#codebase)
+  - [Related repos](#related-repos)
+
+
 
 # Monocular Visual Odometry Pipeline
 
@@ -40,6 +47,11 @@ Implementation of a working, simple, monocular visual odometry (VO) pipeline wit
   - Computer Vision Toolbox
   - Image Processing Toolbox
   - Optimization Toolbox
+
+### How to run
+Download dataset and copy them to the right folder. For details on setting data, please refer to [**Data**](#data). To test the VO pipeline without bundle adjustment, run `main_demo.m`. Change variable `ds` to switch the testing dataset. 
+
+For VO with bundle adjustment, plese run `main_BA.m` and make sure `hyper_paras.is_BA` is `true`. (For now, only tested in parking dataset, ds = 2)
 
 ### Folder Structure
 
