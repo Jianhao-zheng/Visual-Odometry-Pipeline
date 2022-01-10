@@ -1,5 +1,5 @@
 %% Setup
-% close all;
+close all;
 clear;
 clc;
 
@@ -8,10 +8,11 @@ addpath(genpath('utils'))
 addpath('Continuous_operation')  
 addpath('Initialization')  
 
-ds = 0; % 0: KITTI, 1: Malaga, 2: parking
+% BA only works in parking. Don't change this if you want to activate BA
+ds = 2; % 0: KITTI, 1: Malaga, 2: parking
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
-hyper_paras.is_BA = false; % whether to use BA to refine the estimation (only works in parking data !!!!!)
+hyper_paras.is_BA = true; % whether to use BA to refine the estimation (only works in parking!!!)
 hyper_paras.is_refine_pose = true; % whether to refine pose estimation by reprojection error
 
 hyper_paras.feature_extract = 'SURF'; %method to extract features
@@ -306,7 +307,7 @@ for i = range
     S.num_X = [S.num_X; size(S.X,2)];
     S.num_C = [S.num_C; size(S.C,2)];
 
-%     plot_all(image,S,gt_scale,2,i)
+    plot_all(image,S,gt_scale,2,i)
 
     % Makes sure that plots refresh.    
     pause(0.01);

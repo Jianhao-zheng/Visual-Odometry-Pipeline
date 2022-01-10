@@ -17,7 +17,9 @@ ds = 0;
 datasets = {'kitti', 'malaga', 'parking', 'epfl_parking', 'lausanne_center_nav'};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% hyperparameters %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-hyper_paras.is_BA = false; % whether to use BA to refine the estimation
+% whether to use BA (do not activate here, please use main_BA.m if you want to test BA)
+hyper_paras.is_BA = false; 
+
 hyper_paras.is_refine_pose = true; % whether to refine pose estimation by reprojection error
 
 hyper_paras.feature_extract = 'SURF'; %method to extract features
@@ -41,7 +43,7 @@ hyper_paras.r_discard_redundant = 5; % [pixel]
 hyper_paras.angle_threshold = 5; %start with 10 degree dervie by Rule of the thumb:
 
 % use visualization
-hyper_paras.viz_all = false; % true false
+hyper_paras.viz_all = true; % true false
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 param_tic = tic;
