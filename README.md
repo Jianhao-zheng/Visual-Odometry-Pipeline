@@ -70,16 +70,9 @@ Visual-Odometry-Pipeline/
 ├── ...
 ```
 
-
 ## Demo
 
-| Test sequences      | Demo                                                         | Video                                                        |
-| ------------------- | ----------------------------------------------- | ------------------------------------------------------------ |
-| KITTI seq05         | ![epfl_parking](./gifs/kitti.gif) | [[link](https://www.youtube.com/watch?v=ByywzaIwTSM&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=1)] |
-| malaga              | ![epfl_parking](./gifs/malaga.gif) | [[link](https://www.youtube.com/watch?v=l-Jklm77tNg&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=2)] |
-| parking             | ![epfl_parking](./gifs/parking.gif) | [[link](https://www.youtube.com/watch?v=Xut0iuFSy8o&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=3)] |
-| epfl_parking        | ![epfl_parking](./gifs/epfl_parking.gif) | [[link](https://www.youtube.com/watch?v=eWNpX07L4_A&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=4)] |
-| lausanne_center_nav | ![epfl_parking](./gifs/lausanne_center_nav.gif) | [[link](https://www.youtube.com/watch?v=qSgeN7ElPik&list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM&index=5)] |
+YouTube playlists: <https://youtube.com/playlist?list=PLisWEer2ynw1Ws1_km6y-xXDAIyvJ9weM>
 
 
 ## Data
